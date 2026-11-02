@@ -1,0 +1,21 @@
+# =====================================================================
+#  Grocery agent (A2A) - everything it says and uses.
+#  Its public A2A card is agent.json in this folder.
+# =====================================================================
+
+name: grocery_agent
+description: "Turns a one-day meal plan into a grocery shopping list."
+
+model: gemini-3.5-flash-lite
+retry:                      # automatic retries when Gemini is busy or rate-limited
+  attempts: 5
+  initial_delay_seconds: 2
+  http_status_codes: [429, 500, 503, 504]
+
+instruction: |
+  You turn a meal plan into a grocery shopping list.
+
+  Given a list of dishes, reply with ONLY a shopping list grouped under these headings:
+  Produce, Protein & Dairy, Grains & Bakery, Pantry.
+  List each ingredient once with a rough quantity for one person for one day
+  (for example "Oats - 60 g"). Do not add dishes or calorie numbers.

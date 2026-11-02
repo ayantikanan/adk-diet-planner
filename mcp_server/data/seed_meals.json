@@ -1,0 +1,22 @@
+[
+  {"name": "Oats with banana and peanut butter", "meal_type": "breakfast", "calories": 450, "protein_g": 14, "carbs_g": 62, "fat_g": 16, "vegetarian": true},
+  {"name": "Veggie omelette with toast", "meal_type": "breakfast", "calories": 400, "protein_g": 22, "carbs_g": 30, "fat_g": 21, "vegetarian": true},
+  {"name": "Greek yogurt with berries and granola", "meal_type": "breakfast", "calories": 350, "protein_g": 20, "carbs_g": 45, "fat_g": 9, "vegetarian": true},
+  {"name": "Poha with peas", "meal_type": "breakfast", "calories": 250, "protein_g": 6, "carbs_g": 42, "fat_g": 6, "vegetarian": true},
+  {"name": "Scrambled eggs with smoked salmon on rye", "meal_type": "breakfast", "calories": 420, "protein_g": 30, "carbs_g": 28, "fat_g": 20, "vegetarian": false},
+  {"name": "Grilled chicken quinoa bowl", "meal_type": "lunch", "calories": 600, "protein_g": 45, "carbs_g": 60, "fat_g": 18, "vegetarian": false},
+  {"name": "Chickpea salad wrap", "meal_type": "lunch", "calories": 550, "protein_g": 20, "carbs_g": 70, "fat_g": 20, "vegetarian": true},
+  {"name": "Dal, brown rice and salad", "meal_type": "lunch", "calories": 600, "protein_g": 22, "carbs_g": 95, "fat_g": 14, "vegetarian": true},
+  {"name": "Moong dal soup with salad", "meal_type": "lunch", "calories": 350, "protein_g": 18, "carbs_g": 50, "fat_g": 8, "vegetarian": true},
+  {"name": "Tuna and bean salad", "meal_type": "lunch", "calories": 450, "protein_g": 38, "carbs_g": 35, "fat_g": 17, "vegetarian": false},
+  {"name": "Baked salmon, sweet potato and broccoli", "meal_type": "dinner", "calories": 650, "protein_g": 42, "carbs_g": 55, "fat_g": 28, "vegetarian": false},
+  {"name": "Tofu stir-fry with noodles", "meal_type": "dinner", "calories": 600, "protein_g": 28, "carbs_g": 75, "fat_g": 20, "vegetarian": true},
+  {"name": "Paneer tikka with roti and vegetables", "meal_type": "dinner", "calories": 650, "protein_g": 32, "carbs_g": 55, "fat_g": 33, "vegetarian": true},
+  {"name": "Grilled vegetables with lentils", "meal_type": "dinner", "calories": 400, "protein_g": 20, "carbs_g": 55, "fat_g": 10, "vegetarian": true},
+  {"name": "Chicken curry with brown rice", "meal_type": "dinner", "calories": 620, "protein_g": 40, "carbs_g": 65, "fat_g": 20, "vegetarian": false},
+  {"name": "Apple with almonds", "meal_type": "snack", "calories": 200, "protein_g": 5, "carbs_g": 22, "fat_g": 11, "vegetarian": true},
+  {"name": "Hummus with carrot sticks", "meal_type": "snack", "calories": 180, "protein_g": 6, "carbs_g": 20, "fat_g": 8, "vegetarian": true},
+  {"name": "Boiled eggs (2)", "meal_type": "snack", "calories": 150, "protein_g": 13, "carbs_g": 1, "fat_g": 10, "vegetarian": true},
+  {"name": "Cucumber raita", "meal_type": "snack", "calories": 100, "protein_g": 5, "carbs_g": 8, "fat_g": 5, "vegetarian": true},
+  {"name": "Roasted chickpeas", "meal_type": "snack", "calories": 160, "protein_g": 8, "carbs_g": 22, "fat_g": 4, "vegetarian": true}
+]

@@ -1,0 +1,69 @@
+# OpenTelemetry Collector: receives traces, metrics and logs from all 3 services
+# (orchestrator, A2A agents, MCP server) on port 4318 and fans them out:
+#   traces  -> Tempo       (Grafana: traces + service graph)
+#           -> Jaeger      (http://localhost:16686)
+#   metrics -> Prometheus  (Grafana dashboard)
+#   logs    -> Loki        (Grafana dashboard / Explore)
+#   all     -> telemetry/*.jsonl, so observability/verify_traces.py still works
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+  # Drop the A2A SDK's internal queue spans and ASGI send/receive spans:
+  # they add ~150 spans per request and hide the real flow.
+  filter/noise:
+    error_mode: ignore
+    traces:
+      span:
+        - 'IsMatch(name, "^a2a\\.server\\.events\\.")'
+        - 'IsMatch(name, " http (send|receive)$")'
+
+connectors:
+  spanmetrics:
+    histogram:
+      explicit:
+        buckets: [50ms, 100ms, 250ms, 500ms, 1s, 2s, 5s, 10s, 30s]
+
+exporters:
+  otlp/jaeger:
+    endpoint: ${env:JAEGER_ENDPOINT}
+    tls:
+      insecure: true
+  otlp/tempo:
+    endpoint: ${env:TEMPO_ENDPOINT}
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+  otlphttp/loki:
+    endpoint: ${env:LOKI_ENDPOINT}
+  file/traces:
+    path: /telemetry/traces.jsonl
+  file/metrics:
+    path: /telemetry/metrics.jsonl
+  file/logs:
+    path: /telemetry/logs.jsonl
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [filter/noise, batch]
+      exporters: [otlp/jaeger, otlp/tempo, spanmetrics, file/traces]
+    metrics:
+      receivers: [otlp, spanmetrics]
+      processors: [batch]
+      exporters: [prometheus, file/metrics]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/loki, file/logs]

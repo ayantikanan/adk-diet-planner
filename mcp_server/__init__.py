@@ -1,0 +1,1 @@
+"""Diet tools MCP server."""

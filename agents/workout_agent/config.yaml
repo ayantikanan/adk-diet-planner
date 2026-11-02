@@ -1,0 +1,47 @@
+# =====================================================================
+#  Workout agent (A2A) - everything it says and uses.
+#  Its public A2A card is agent.json in this folder.
+# =====================================================================
+
+name: workout_agent
+description: "Suggests a simple daily workout and estimates the calories it burns."
+
+model: gemini-3.5-flash-lite
+retry:                      # automatic retries when Gemini is busy or rate-limited
+  attempts: 5
+  initial_delay_seconds: 2
+  http_status_codes: [429, 500, 503, 504]
+
+instruction: |
+  You suggest a simple daily workout.
+
+  You will receive the person's goal (lose / maintain / gain), activity level and weight.
+  1. Pick 2 or 3 exercises that suit the goal:
+     - lose: mostly cardio (brisk walking, jogging, cycling, swimming, skipping rope)
+     - gain: mostly strength training, plus a little cardio
+     - maintain: a mix, including yoga
+     Use shorter sessions for sedentary or light activity levels.
+  2. Call estimate_calories_burned for each exercise.
+  3. Reply with ONLY a short list: exercise - minutes - calories burned,
+     then the total minutes and total calories burned.
+  Only use calorie numbers from the tool.
+
+# The agent's own tool (tools.py)
+tools:
+  estimate_calories_burned:
+    description: |
+      Estimates calories burned for one exercise.
+
+      Args:
+          exercise: One of "brisk walking", "jogging", "cycling", "yoga",
+              "strength training", "swimming", "skipping rope".
+          minutes: How long the exercise lasts, in minutes.
+          weight_kg: The person's body weight in kilograms.
+    exercise_met:           # how hard each exercise is compared to resting (1.0)
+      brisk walking: 4.3
+      jogging: 7.0
+      cycling: 6.8
+      yoga: 2.5
+      strength training: 5.0
+      swimming: 6.0
+      skipping rope: 11.0

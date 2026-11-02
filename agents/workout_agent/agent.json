@@ -1,0 +1,17 @@
+{
+  "name": "workout_agent",
+  "description": "Suggests a simple daily workout for a fitness goal and estimates the calories it burns.",
+  "url": "http://localhost:8001/a2a/workout_agent",
+  "version": "1.0.0",
+  "capabilities": {},
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "skills": [
+    {
+      "id": "daily_workout",
+      "name": "Daily Workout Plan",
+      "description": "Creates a short daily workout for a goal (lose / maintain / gain) and activity level, with calories burned.",
+      "tags": ["fitness", "workout", "exercise"]
+    }
+  ]
+}

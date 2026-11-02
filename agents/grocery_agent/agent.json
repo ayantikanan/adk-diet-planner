@@ -1,0 +1,17 @@
+{
+  "name": "grocery_agent",
+  "description": "Turns a one-day meal plan into a grocery shopping list grouped by store section.",
+  "url": "http://localhost:8001/a2a/grocery_agent",
+  "version": "1.0.0",
+  "capabilities": {},
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "skills": [
+    {
+      "id": "shopping_list",
+      "name": "Shopping List",
+      "description": "Creates a grocery list with quantities from a list of dishes.",
+      "tags": ["grocery", "shopping", "meal plan"]
+    }
+  ]
+}

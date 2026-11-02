@@ -1,0 +1,55 @@
+# =====================================================================
+#  MCP tool server - its address and every tool it serves.
+#  Edit this file to change a tool's description or numbers;
+#  restart the server afterwards.
+# =====================================================================
+
+name: diet-tools
+instructions: "Tools for planning a daily diet: calorie targets and meal ideas."
+host: 127.0.0.1
+port: 8002                  # 8000 = orchestrator (adk web), 8001 = A2A agents
+
+tools:
+
+  calculate_daily_calories:
+    description: |
+      Calculates a daily calorie and macro target (Mifflin-St Jeor equation).
+
+      Args:
+          age: Age in years.
+          sex: "male" or "female".
+          weight_kg: Body weight in kilograms.
+          height_cm: Height in centimetres.
+          activity: One of "sedentary", "light", "moderate", "active".
+          goal: One of "lose", "maintain", "gain".
+    activity_levels:          # multipliers for the Mifflin-St Jeor equation
+      sedentary: 1.2
+      light: 1.375
+      moderate: 1.55
+      active: 1.725
+    goal_adjustment:          # calories added/removed per day for each goal
+      lose: -500
+      maintain: 0
+      gain: 300
+    min_calories:             # safety floor: never plan below these
+      male: 1500
+      female: 1200
+    macro_split:              # share of calories from each macro
+      protein: 0.30
+      carbs: 0.40
+      fat: 0.30
+
+  get_meal_options:
+    description: |
+      Returns meal ideas for one meal of the day, with calories and
+      macros (protein_g, carbs_g, fat_g), lowest calories first.
+
+      Args:
+          meal_type: One of "breakfast", "lunch", "dinner", "snack".
+          vegetarian: If true, only vegetarian options are returned.
+    # Meals live in a SQLite database, built from the seed file on first run.
+    # Rebuild after editing the seed: uv run python -m mcp_server.db --rebuild
+    database: data/diet.db            # paths are relative to mcp_server/
+    schema_file: data/schema.sql
+    seed_file: data/seed_meals.json
+    max_options: 10                   # most options returned per meal type

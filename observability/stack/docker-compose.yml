@@ -1,0 +1,78 @@
+# Observability stack: OTel Collector -> Tempo + Jaeger (traces), Prometheus (metrics),
+# Loki (logs) -> Grafana.
+#   Start:  docker compose -f observability/stack/docker-compose.yml up -d
+#   Stop:   docker compose -f observability/stack/docker-compose.yml down
+#
+#   Grafana     http://localhost:3000    dashboard: Diet Planner - Agents, MCP & LLM
+#   Jaeger UI   http://localhost:16686   traces
+#   Prometheus  http://localhost:9090    raw metrics
+# The services send OTLP to http://localhost:4318 (see otel.env).
+name: stack
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.132.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    user: "0"
+    environment:
+      JAEGER_ENDPOINT: jaeger:4317
+      TEMPO_ENDPOINT: tempo:4317
+      LOKI_ENDPOINT: http://loki:3100/otlp
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      - ../../telemetry:/telemetry
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on: [jaeger, tempo, loki]
+
+  tempo:
+    image: grafana/tempo:2.8.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    user: "0"
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+    depends_on: [prometheus]
+
+  jaeger:
+    image: jaegertracing/jaeger:2.9.0
+    ports:
+      - "16686:16686"
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  loki:
+    image: grafana/loki:3.5.3
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/diet-planner.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on: [prometheus, loki, tempo, jaeger]
+
+volumes:
+  tempo-data:

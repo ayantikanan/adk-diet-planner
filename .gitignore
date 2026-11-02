@@ -1,0 +1,8 @@
+telemetry/
+
+mcp_server/data/*.db
+mcp_server/data/*.building
+diet_agent/.adk/
+
+.env
+.adk/
