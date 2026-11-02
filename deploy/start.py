@@ -4,6 +4,9 @@ Which service is chosen with the SERVICE environment variable:
     SERVICE=mcp           the MCP tool server
     SERVICE=a2a           the A2A sub-agents (grocery_agent, workout_agent)
     SERVICE=orchestrator  the orchestrator + ADK web UI
+    SERVICE=all           all three in one container: MCP server and A2A agents in
+                          the background on localhost, the orchestrator on PORT
+                          (used when the services can't call each other publicly)
 
 Cloud Run tells the container which port to listen on with PORT (default 8080).
 With OTEL_TO_GCP=true, traces, metrics and logs go to Google Cloud Trace,
@@ -12,6 +15,7 @@ Cloud Monitoring and Cloud Logging.
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -43,6 +47,19 @@ def adk_command(*args: str) -> list[str]:
     return command + [str(ROOT / "agents")]
 
 
+def start_background_services() -> None:
+    """Starts the MCP server (:8002) and A2A agents (:8001) inside this container."""
+    os.environ.setdefault("MCP_SERVER_URL", "http://127.0.0.1:8002/mcp")
+    os.environ.setdefault("GROCERY_AGENT_URL", "http://127.0.0.1:8001/a2a/grocery_agent")
+    os.environ.setdefault("WORKOUT_AGENT_URL", "http://127.0.0.1:8001/a2a/workout_agent")
+    set_agent_card_urls("http://127.0.0.1:8001")
+    for name, port in (("mcp", "8002"), ("a2a", "8001")):
+        env = {**os.environ, "SERVICE": name, "PORT": port,
+               "OTEL_SERVICE_NAME": f"diet-{'mcp-server' if name == 'mcp' else 'a2a-agents'}"}
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve())], env=env)
+        print(f"Started {name} in the background on port {port}", flush=True)
+
+
 def main() -> None:
     if SERVICE == "mcp":
         os.environ.update(MCP_HOST="0.0.0.0", MCP_PORT=PORT)
@@ -53,8 +70,11 @@ def main() -> None:
         command = adk_command("api_server", "--a2a")
     elif SERVICE == "orchestrator":
         command = adk_command("web")
+    elif SERVICE == "all":
+        start_background_services()
+        command = adk_command("web")
     else:
-        sys.exit("Set SERVICE to one of: mcp, a2a, orchestrator")
+        sys.exit("Set SERVICE to one of: mcp, a2a, orchestrator, all")
 
     print(f"Starting {SERVICE} on port {PORT}: {' '.join(command)}", flush=True)
     os.chdir(ROOT)

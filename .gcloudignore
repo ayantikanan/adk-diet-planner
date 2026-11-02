@@ -1,0 +1,16 @@
+# Files NOT uploaded to Cloud Build (the container installs its own packages)
+.gcloudignore
+.git/
+.gitignore
+.venv/
+**/.venv/
+.pytest_cache/
+**/__pycache__/
+**/.adk/
+telemetry/
+.env
+**/.env
+mcp_server/data/*.db
+mcp_server/data/*.building
+*.bak
+.vscode/
