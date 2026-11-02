@@ -30,7 +30,7 @@ from mcp_server.tools import calculate_daily_calories, get_meal_options  # noqa:
 # Build the meals database from the seed file on first run.
 ensure_database()
 
-HOST = SERVER["host"]
+HOST = os.getenv("MCP_HOST", SERVER["host"])  # Cloud Run needs 0.0.0.0
 PORT = int(os.getenv("MCP_PORT", SERVER["port"]))  # MCP_PORT lets the tests use another port
 
 mcp = MCPServer(

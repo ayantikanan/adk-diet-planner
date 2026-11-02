@@ -11,7 +11,9 @@ It is exactly `adk <args>`, plus:
   - a meter provider with longer duration buckets: the default ones stop at
     10 s, but an agent request takes up to a minute, so every p95 would read 10 s.
     ADK sees a meter provider is already set and uses this one.
-ADK itself sets up the trace and log exporters from the OTEL_* environment variables.
+ADK itself sets up the trace and log exporters from the OTEL_* environment variables,
+or, with `--otel_to_cloud` (used on Google Cloud), exports everything to Cloud Trace,
+Cloud Monitoring and Cloud Logging; the metrics then go through the same views here.
 """
 
 import os
@@ -29,11 +31,22 @@ from opentelemetry.sdk.resources import Resource
 DURATION_BUCKETS_S = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10,
                       20, 30, 45, 60, 90, 120, 180, 300)
 
-if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
+TO_GCP = "--otel_to_cloud" in sys.argv
+
+
+def _metric_readers() -> list:
+    if TO_GCP:
+        from google.adk.telemetry.google_cloud import get_gcp_exporters
+
+        return get_gcp_exporters(enable_cloud_metrics=True).metric_readers
+    return [PeriodicExportingMetricReader(OTLPMetricExporter())]
+
+
+if TO_GCP or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
     metrics.set_meter_provider(
         MeterProvider(
             resource=Resource.create(),  # service.name comes from OTEL_SERVICE_NAME
-            metric_readers=[PeriodicExportingMetricReader(OTLPMetricExporter())],
+            metric_readers=_metric_readers(),
             views=[
                 View(instrument_name=name, aggregation=ExplicitBucketHistogramAggregation(DURATION_BUCKETS_S))
                 for name in ("http.server.request.duration", "http.client.request.duration")

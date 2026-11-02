@@ -1,0 +1,13 @@
+# Never put secrets or local files in the image
+.env
+**/.env
+.venv/
+.git/
+.pytest_cache/
+**/__pycache__/
+**/.adk/
+telemetry/
+mcp_server/data/*.db
+mcp_server/data/*.building
+*.bak
+.vscode/
