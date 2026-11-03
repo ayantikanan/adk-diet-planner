@@ -1,0 +1,94 @@
+# =====================================================================
+#  Guardrails for the orchestrator - edit here, no code changes needed.
+#
+#  input_rules: checked on every new user message BEFORE Gemini sees it.
+#    The first rule whose pattern matches answers instead of the model.
+#    Patterns are regular expressions, matched case-insensitively.
+#  tool_limits: checked BEFORE a tool runs. Out-of-range values are
+#    refused, so the plan is never built on unsafe numbers.
+#  output: checked on the model's final answer.
+# =====================================================================
+
+input_rules:
+  - name: self_harm
+    patterns:
+      - \b(kill|hurt|harm) myself\b
+      - \bend (my|it all|my life)\b
+      - \bsuicid
+      - \bdon'?t want to (live|be alive)\b
+    reply: |
+      I'm really sorry you're feeling this way. I'm not able to help with this,
+      but you don't have to go through it alone. In the US you can call or text
+      **988** (Suicide & Crisis Lifeline) any time. If you're outside the US,
+      please contact your local emergency number or a crisis line near you.
+
+  - name: eating_disorder
+    patterns:
+      - \bpurg(e|ing)\b
+      - \bmake (myself|me) (throw up|vomit|sick)\b
+      - \bstarv(e|ing) myself\b
+      - \b(stop|quit) eating\b
+      - \bnot eat(ing)? (for|at all)\b
+      - \bpro[- ]?ana\b
+      - \bthinspo\b
+      - \b(laxatives?|diet pills?) to lose\b
+      - \b([1-7]\d\d|[1-9]\d?)\s*(k?cals?|calories)\s*(a|per|each)\s*day\b
+    reply: |
+      It sounds like food and eating might be feeling really hard right now, and
+      I don't want to give you a plan that could hurt you. Talking to someone can
+      help: the National Alliance for Eating Disorders helpline is
+      **1-866-662-1235** (Mon-Fri, 9am-7pm ET), or you can speak to a doctor or
+      registered dietitian you trust. If you're in crisis, call or text **988**.
+
+  - name: under_18
+    patterns:
+      - \bI\W?\s?a?m (1[0-7]|[1-9])\s*(,|and\b|years?\b|yrs?\b|y/?o\b|male\b|female\b|boy\b|girl\b)
+      - \b(1[0-7]|[1-9])\s*(years?[- ]old|yrs?[- ]old|yo|y/o)\b
+    reply: |
+      These plans are made for adults (18+). Growing bodies have different
+      needs, so please ask a parent or guardian to help you talk to a doctor or a
+      registered dietitian about healthy eating.
+
+  - name: pregnancy
+    patterns:
+      - \bpregnan
+      - \bbreast\s?feeding\b
+      - \bnursing my (baby|newborn)\b
+    reply: |
+      Congratulations! Calorie and nutrient needs change a lot during pregnancy
+      and breastfeeding, so I won't build a plan here. Please ask your doctor,
+      midwife or a registered dietitian for one that's right for you.
+
+  - name: prompt_injection
+    patterns:
+      - \b(ignore|disregard|forget) (all |any )?(of )?(the |your |my )?(previous|prior|above|earlier|system)?\s*(instructions|rules|prompts?)\b
+      - \b(reveal|show|print|repeat|tell me) (me )?(your|the) (system )?(prompt|instructions)\b
+      - \byou are now\b
+      - \b(developer|dan|god) mode\b
+      - \bjailbreak
+      - \bact as (an? )?(unrestricted|unfiltered)\b
+    reply: |
+      I can only help with daily diet plans: meals, calories, a shopping list
+      and a simple workout. Tell me your age, sex, weight, height, activity
+      level, goal and whether you're vegetarian, and I'll build one.
+
+# [min, max] for each tool argument. Values outside the range are refused.
+tool_limits:
+  calculate_daily_calories:
+    age: [18, 100]
+    weight_kg: [30, 300]
+    height_cm: [120, 230]
+
+tool_refusal: >-
+  BLOCKED by guardrail: {arg}={value} is outside the safe range {low}-{high}.
+  Do not call this tool again with a different value. Tell the user kindly that
+  you can only build plans for adults with {arg} between {low} and {high}, and
+  suggest they speak to a doctor or a registered dietitian.
+
+output:
+  # Added to the final answer if the model forgot it.
+  disclaimer: "This is general guidance, not medical advice."
+  # Removed from any answer (e.g. a leaked API key).
+  redact_patterns:
+    - AIza[0-9A-Za-z_\-]{35}
+    - \bAQ\.[0-9A-Za-z_\-]{20,}

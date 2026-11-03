@@ -17,6 +17,7 @@ from google.adk.tools.agent_tool import AgentTool
 from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 
 from .fallback_model import FallbackGemini
+from .guardrails import check_input, check_output, check_tool
 from .telemetry import export_logs
 
 CONFIG = yaml.safe_load((Path(__file__).parent / "config.yaml").read_text(encoding="utf-8"))
@@ -56,4 +57,8 @@ root_agent = LlmAgent(
         AgentTool(grocery_agent),  # A2A sub-agent 1
         AgentTool(workout_agent),  # A2A sub-agent 2
     ],
+    # Guardrails (rules in guardrails.yaml)
+    before_model_callback=check_input,   # unsafe or off-topic messages never reach Gemini
+    before_tool_callback=check_tool,     # out-of-range tool arguments are refused
+    after_model_callback=check_output,   # disclaimer added, secrets removed
 )
