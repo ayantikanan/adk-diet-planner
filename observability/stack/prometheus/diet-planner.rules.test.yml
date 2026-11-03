@@ -1,0 +1,91 @@
+# Unit tests for diet-planner.rules.yml (run in CI, and locally with):
+#   promtool test rules observability/stack/prometheus/diet-planner.rules.test.yml
+rule_files:
+  - diet-planner.rules.yml
+
+evaluation_interval: 30s
+
+tests:
+  # 1. A third of the plans fail: the availability SLO alert fires.
+  - interval: 1m
+    input_series:
+      - series: 'diet_plan_requests_total{kind="day", outcome="success"}'
+        values: '0+6x20'
+      - series: 'diet_plan_requests_total{kind="day", outcome="error"}'
+        values: '0+3x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: PlanErrorBudgetBurn
+        exp_alerts:
+          - exp_labels: {severity: page, slo: availability}
+            exp_annotations:
+              summary: "Plans are failing: 33.33% errors in the last 5 minutes"
+              description: "The 99% availability SLO is burning its error budget more than 14x too fast. Open Jaeger and filter on error=true for service diet-web-app."
+    promql_expr_test:
+      - expr: round(diet:plan_error_ratio:rate5m, 0.01)
+        eval_time: 15m
+        exp_samples:
+          - value: 0.33
+
+  # 2. Everything works: no alerts.
+  - interval: 1m
+    input_series:
+      - series: 'diet_plan_requests_total{kind="day", outcome="success"}'
+        values: '0+5x30'
+      - series: 'diet_plan_requests_total{kind="day", outcome="error"}'
+        values: '0x30'
+      - series: 'diet_plan_duration_seconds_bucket{kind="day", le="60"}'
+        values: '0+5x30'
+      - series: 'diet_plan_duration_seconds_count{kind="day"}'
+        values: '0+5x30'
+      - series: 'up{job="otel-collector"}'
+        values: '1x30'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: PlanErrorBudgetBurn
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: PlansTooSlow
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: TelemetryPipelineDown
+        exp_alerts: []
+
+  # 3. Half the plans take longer than 60 s: the speed SLO alert fires.
+  - interval: 1m
+    input_series:
+      - series: 'diet_plan_duration_seconds_bucket{kind="week", le="60"}'
+        values: '0+2x40'
+      - series: 'diet_plan_duration_seconds_count{kind="week"}'
+        values: '0+4x40'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: PlansTooSlow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: latency}
+            exp_annotations:
+              summary: "50% of plans took longer than 60 s in the last hour"
+              description: "The speed SLO (90% under 60 s) is being missed. Check 'LLM call latency' and 'A2A round trip' on the dashboard."
+
+  # 4. Many blocked messages, and the collector goes down.
+  - interval: 1m
+    input_series:
+      - series: 'diet_guardrail_triggers_total{rule="prompt_injection"}'
+        values: '0+3x15'
+      - series: 'up{job="otel-collector"}'
+        values: '1x5 0x10'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: GuardrailSpike
+        exp_alerts:
+          - exp_labels: {severity: info}
+            exp_annotations:
+              summary: "30 guardrail blocks in 10 minutes"
+              description: "Unusual number of blocked messages (prompt injection or unsafe requests). Check the Logs panel for 'guardrail'."
+      - eval_time: 12m
+        alertname: TelemetryPipelineDown
+        exp_alerts:
+          - exp_labels: {severity: page, job: otel-collector}
+            exp_annotations:
+              summary: "The OpenTelemetry Collector is not reachable"
+              description: "No new traces, metrics or logs are arriving. Restart the stack: docker compose -f observability/stack/docker-compose.yml up -d"

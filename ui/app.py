@@ -11,7 +11,9 @@ remember the user's profile and list their past plans (memory).
 
 Settings come from ui/config.yaml.
 
-Run it (in its own terminal):
+Run it (in its own terminal), with tracing:
+    $env:OTEL_SERVICE_NAME="diet-web-app"; uv run --env-file otel.env python ui/app.py
+or without tracing:
     uv run python ui/app.py
 Then open http://127.0.0.1:8080
 """
@@ -19,6 +21,7 @@ Then open http://127.0.0.1:8080
 import asyncio
 import json
 import re
+import sys
 import uuid
 from pathlib import Path
 
@@ -30,6 +33,10 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from web_telemetry import PlanTimer, untraced  # noqa: E402
+from web_telemetry import setup as setup_telemetry  # noqa: E402
+
 UI = yaml.safe_load((Path(__file__).resolve().parent / "config.yaml").read_text(encoding="utf-8"))
 CHECKS = UI["health_checks"]
 ADK_URL = UI["adk_url"].rstrip("/")
@@ -38,6 +45,7 @@ STATIC = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(title="Diet planner")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+TELEMETRY = setup_telemetry(app)  # traces, metrics and logs when OTEL_EXPORTER_OTLP_ENDPOINT is set
 
 
 USER_ID = re.compile(r"^web-[a-z0-9]{8,32}$")
@@ -178,23 +186,51 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         "streaming": False,
     }
 
+    timer = PlanTimer(req.message)  # user-facing SLI: outcome and duration of this plan
+
     async def relay():
+        answered = False
         async with httpx.AsyncClient(timeout=httpx.Timeout(300, connect=10)) as client:
             try:
                 async with client.stream("POST", f"{ADK_URL}/run_sse", json=body) as response:
                     if response.status_code != 200:
                         detail = (await response.aread()).decode(errors="replace")[:300]
                         error = f"Orchestrator returned {response.status_code}: {detail}"
+                        timer.finish("error", error)
                         yield f"data: {json.dumps({'error': error})}\n\n"
                         return
                     async for line in response.aiter_lines():
-                        if line:
-                            yield line + "\n\n"
+                        if not line:
+                            continue
+                        event = _event(line)
+                        if event.get("error") or event.get("errorMessage"):
+                            timer.finish("error", str(event.get("error") or event.get("errorMessage")))
+                        elif _has_answer(event):
+                            answered = True
+                        yield line + "\n\n"
+                timer.finish("success" if answered else "error", "finished without an answer")
             except httpx.HTTPError as e:
                 error = f"Lost connection to the orchestrator ({type(e).__name__})."
+                timer.finish("error", error)
                 yield f"data: {json.dumps({'error': error})}\n\n"
 
     return StreamingResponse(relay(), media_type="text/event-stream")
+
+
+def _event(line: str) -> dict:
+    if not line.startswith("data:"):
+        return {}
+    try:
+        return json.loads(line[5:])
+    except ValueError:
+        return {}
+
+
+def _has_answer(event: dict) -> bool:
+    if event.get("author") == "user":
+        return False
+    parts = (event.get("content") or {}).get("parts") or []
+    return any(p.get("text") and not p.get("thought") for p in parts)
 
 
 async def _http_ok(client: httpx.AsyncClient, url: str) -> bool:
@@ -217,12 +253,13 @@ async def _port_open(address: str) -> bool:
 @app.get("/api/health")
 async def health() -> dict:
     """Checks each service the planner depends on."""
-    async with httpx.AsyncClient(timeout=2) as client:
-        orchestrator, grocery, workout = await asyncio.gather(
-            _http_ok(client, f"{ADK_URL}/list-apps"),
-            _http_ok(client, CHECKS["grocery_agent"]),
-            _http_ok(client, CHECKS["workout_agent"]),
-        )
+    with untraced():  # polled every 10 s: keep it out of the traces
+        async with httpx.AsyncClient(timeout=2) as client:
+            orchestrator, grocery, workout = await asyncio.gather(
+                _http_ok(client, f"{ADK_URL}/list-apps"),
+                _http_ok(client, CHECKS["grocery_agent"]),
+                _http_ok(client, CHECKS["workout_agent"]),
+            )
     tools, telemetry = await asyncio.gather(
         _port_open(CHECKS["mcp_server"]),
         _port_open(CHECKS["telemetry_collector"]),

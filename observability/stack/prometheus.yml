@@ -1,5 +1,10 @@
 global:
   scrape_interval: 10s
+  evaluation_interval: 30s
+
+# SLIs and alerts (see prometheus/diet-planner.rules.yml).
+rule_files:
+  - /etc/prometheus/rules/diet-planner.rules.yml
 
 scrape_configs:
   - job_name: otel-collector

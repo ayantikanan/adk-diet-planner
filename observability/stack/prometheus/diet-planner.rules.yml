@@ -1,0 +1,102 @@
+# Prometheus rules for the diet planner: SLIs (recording rules) and alerts.
+# Loaded by Prometheus (see prometheus.yml); Grafana shows the alerts under
+# Alerting > Alert rules (data source-managed) and on the dashboard's "SLOs & alerts" row.
+# Tested by diet-planner.rules.test.yml:
+#   promtool test rules observability/stack/prometheus/diet-planner.rules.test.yml
+#
+# SLOs, measured where the user feels them (the web app, ui/web_telemetry.py):
+#   Availability: 99% of plan requests finish with an answer.
+#   Speed:        90% of plan requests finish within 60 seconds.
+
+groups:
+  - name: diet-planner-slis
+    interval: 30s
+    rules:
+      # Share of plan requests that failed, over 5 minutes and 1 hour.
+      - record: diet:plan_error_ratio:rate5m
+        expr: |
+          sum(rate(diet_plan_requests_total{outcome="error"}[5m]))
+          / clamp_min(sum(rate(diet_plan_requests_total[5m])), 1e-9)
+      - record: diet:plan_error_ratio:rate1h
+        expr: |
+          sum(rate(diet_plan_requests_total{outcome="error"}[1h]))
+          / clamp_min(sum(rate(diet_plan_requests_total[1h])), 1e-9)
+      # Share of plan requests that took longer than 60 seconds.
+      - record: diet:plan_slow_ratio:rate1h
+        expr: |
+          1 - (
+            sum(rate(diet_plan_duration_seconds_bucket{le=~"60(\\.0)?"}[1h]))
+            / clamp_min(sum(rate(diet_plan_duration_seconds_count[1h])), 1e-9)
+          )
+      # p95 time from click to answer, by kind of request (day, week, swap, followup).
+      - record: diet:plan_duration_seconds:p95_10m
+        expr: histogram_quantile(0.95, sum by (le, kind) (rate(diet_plan_duration_seconds_bucket[10m])))
+
+  - name: diet-planner-alerts
+    rules:
+      # Multi-window burn rate (Google SRE workbook): at 14.4x, a 30-day error
+      # budget of 1% would be gone in about 2 days. Both windows must agree, so a
+      # single old error doesn't keep it firing.
+      - alert: PlanErrorBudgetBurn
+        expr: diet:plan_error_ratio:rate1h > (14.4 * 0.01) and diet:plan_error_ratio:rate5m > (14.4 * 0.01)
+        for: 2m
+        labels:
+          severity: page
+          slo: availability
+        annotations:
+          summary: "Plans are failing: {{ $value | humanizePercentage }} errors in the last 5 minutes"
+          description: "The 99% availability SLO is burning its error budget more than 14x too fast. Open Jaeger and filter on error=true for service diet-web-app."
+
+      - alert: PlansTooSlow
+        expr: diet:plan_slow_ratio:rate1h > 0.10
+        for: 10m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of plans took longer than 60 s in the last hour"
+          description: "The speed SLO (90% under 60 s) is being missed. Check 'LLM call latency' and 'A2A round trip' on the dashboard."
+
+      - alert: GeminiCallsFailing
+        expr: sum by (service_name) (rate(gen_ai_client_operation_duration_seconds_count{error_type!=""}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gemini calls are failing in {{ $labels.service_name }}"
+          description: "Model errors (429/503 or bad key). The orchestrator falls back to other models; the sub-agents retry."
+
+      - alert: ServiceErrorSpans
+        expr: |
+          sum by (service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m]))
+          / clamp_min(sum by (service_name) (rate(traces_span_metrics_calls_total[5m])), 1e-9) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 5% of spans in {{ $labels.service_name }} end in an error"
+          description: "Computed from the traces by the collector's spanmetrics connector."
+
+      - alert: McpToolErrors
+        expr: sum by (tool_name) (increase(diet_mcp_tool_calls_total{status="error"}[10m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "MCP tool {{ $labels.tool_name }} raised errors in the last 10 minutes"
+
+      - alert: GuardrailSpike
+        expr: sum(increase(diet_guardrail_triggers_total[10m])) > 10
+        labels:
+          severity: info
+        annotations:
+          summary: "{{ $value | humanize }} guardrail blocks in 10 minutes"
+          description: "Unusual number of blocked messages (prompt injection or unsafe requests). Check the Logs panel for 'guardrail'."
+
+      - alert: TelemetryPipelineDown
+        expr: up{job="otel-collector"} == 0
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "The OpenTelemetry Collector is not reachable"
+          description: "No new traces, metrics or logs are arriving. Restart the stack: docker compose -f observability/stack/docker-compose.yml up -d"

@@ -180,3 +180,22 @@ Grafana and Jaeger addresses, are in `ui/config.yaml`.
 | Plan my week | MCP tool `build_week_menu`: 7 days, each close to the calorie target (portions 0.75x-1.5x), fewest repeats, same filters. Day tabs in the web app; 7-day shopping list from the grocery agent. |
 | Swap a meal | A Swap button on each row of the daily plan; the agent picks a dish with similar calories and updates the shopping list. |
 | Print or save as PDF | A print layout with just the Daily Targets label and the latest plan (all 7 days for a week). |
+
+---
+
+## Observability: SLOs, alerts, exemplars
+
+- **Traces start at the click.** The web app is instrumented too (`ui/web_telemetry.py`, service
+  `diet-web-app`): one trace covers web app -> orchestrator -> MCP server -> A2A agents.
+- **User-facing SLIs**, measured in the web app: `diet_plan_requests_total` (by kind: day, week, swap,
+  followup; outcome: success, error) and `diet_plan_duration_seconds` (click to answer).
+- **SLOs:** 99% of plans succeed; 90% finish within 60 s. Grafana row "SLOs & alerts" shows success,
+  speed, error budget left, burn rate and the alerts firing now.
+- **Alerts as code:** `observability/stack/prometheus/diet-planner.rules.yml` (multi-window burn-rate
+  alert, slow plans, Gemini errors, error spans, MCP tool errors, guardrail spike, collector down),
+  unit-tested with `promtool test rules` in CI. See them at http://localhost:9090/alerts.
+- **Exemplars:** the dots on latency graphs link to the exact trace in Tempo.
+
+Run the web app with tracing (PowerShell):
+
+    $env:OTEL_SERVICE_NAME="diet-web-app"; uv run --env-file otel.env python ui/app.py

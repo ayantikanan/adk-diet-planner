@@ -33,6 +33,19 @@ jobs:
       - name: Tests
         run: uv run pytest -q
 
+  alert-rules:
+    name: Alert rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check and unit-test the Prometheus rules
+        run: |
+          docker run --rm -v "$PWD/observability/stack/prometheus:/rules" -w /rules \
+            --entrypoint promtool prom/prometheus:v3.5.0 check rules diet-planner.rules.yml
+          docker run --rm -v "$PWD/observability/stack/prometheus:/rules" -w /rules \
+            --entrypoint promtool prom/prometheus:v3.5.0 test rules diet-planner.rules.test.yml
+
   docker:
     name: Docker image builds
     runs-on: ubuntu-latest

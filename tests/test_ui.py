@@ -41,3 +41,13 @@ def test_memory_endpoints_reject_bad_ids():
     assert client.get("/api/users/not-a-web-id/memory").status_code == 400
     assert client.get("/api/users/web-abcdef123456/history/bad id!").status_code == 400
     assert client.delete("/api/users/robert'); DROP TABLE").status_code in (400, 404, 405)
+
+
+def test_answer_detection_for_the_sli():
+    answer = 'data: {"author": "orchestrator", "content": {"parts": [{"text": "Here is your plan"}]}}'
+    question = 'data: {"author": "user", "content": {"parts": [{"text": "hi"}]}}'
+    tool_call = 'data: {"author": "orchestrator", "content": {"parts": [{"functionCall": {"name": "x"}}]}}'
+    assert ui_app._has_answer(ui_app._event(answer))
+    assert not ui_app._has_answer(ui_app._event(question))
+    assert not ui_app._has_answer(ui_app._event(tool_call))
+    assert ui_app._event("data: not json") == {}

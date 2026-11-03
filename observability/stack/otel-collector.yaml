@@ -27,6 +27,8 @@ processors:
 
 connectors:
   spanmetrics:
+    exemplars:
+      enabled: true          # each latency bucket remembers a trace ID (click-through in Grafana)
     histogram:
       explicit:
         buckets: [50ms, 100ms, 250ms, 500ms, 1s, 2s, 5s, 10s, 30s]
@@ -42,6 +44,7 @@ exporters:
       insecure: true
   prometheus:
     endpoint: 0.0.0.0:8889
+    enable_open_metrics: true  # needed to pass exemplars (trace IDs) to Prometheus
     resource_to_telemetry_conversion:
       enabled: true
   otlphttp/loki:
