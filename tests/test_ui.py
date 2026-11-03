@@ -1,0 +1,36 @@
+"""Tests for the web app (ui/app.py). No agents need to be running."""
+
+import importlib.util
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+APP_PATH = Path(__file__).resolve().parents[1] / "ui" / "app.py"
+spec = importlib.util.spec_from_file_location("ui_app", APP_PATH)
+ui_app = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(ui_app)
+client = TestClient(ui_app.app)
+
+
+def test_page_and_assets_are_served():
+    page = client.get("/")
+    assert page.status_code == 200
+    assert "Build my plan" in page.text
+    for asset in ("/static/app.js", "/static/styles.css"):
+        assert client.get(asset).status_code == 200
+
+
+def test_health_reports_every_service():
+    health = client.get("/api/health").json()
+    assert set(health) == {"orchestrator", "tools", "grocery_agent", "workout_agent", "telemetry"}
+    assert all(isinstance(up, bool) for up in health.values())
+
+
+def test_links_point_to_grafana_and_jaeger():
+    links = client.get("/api/links").json()
+    assert "/d/diet-planner" in links["dashboard"]
+    assert "{trace_id}" in links["trace"]
+
+
+def test_chat_needs_a_session():
+    assert client.post("/api/chat", json={"message": "hi"}).status_code == 422

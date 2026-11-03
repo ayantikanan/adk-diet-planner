@@ -1,5 +1,7 @@
 # Diet Planner - multi-agent system with Google ADK, MCP, A2A and OpenTelemetry
 
+[![CI](https://github.com/ayantikanan/adk-diet-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/ayantikanan/adk-diet-planner/actions/workflows/ci.yml)
+
 An **orchestrator agent** builds a one-day diet plan. It gets exact numbers from an
 **MCP tool server**, delegates work to **two sub-agents over A2A**, and every step is
 traced with **OpenTelemetry** and shown in **Grafana** and **Jaeger**.
