@@ -1,0 +1,268 @@
+/* Daily Diet Planner - styles
+   The Nutrition Facts label is the one bold element; everything else stays quiet. */
+
+:root {
+  --page: #e6ebe2;      /* sage mist */
+  --paper: #ffffff;
+  --ink: #000000;       /* label ink */
+  --text: #1d211b;
+  --muted: #5b6257;
+  --line: #c8d0c1;
+  --leaf: #2e6b3a;      /* actions, healthy */
+  --leaf-soft: #dfeadb;
+  --beet: #9b1d4a;      /* problems */
+  --beet-soft: #f6e3ea;
+  --radius-sm: 6px;
+  --radius-lg: 14px;
+  --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 16px; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text);
+  font-family: var(--font);
+  font-variation-settings: "wdth" 100;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select { font: inherit; color: inherit; }
+
+:focus-visible { outline: 3px solid var(--leaf); outline-offset: 2px; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 12px 24px;
+  padding: 14px 28px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: conic-gradient(var(--leaf) 0 30%, #c9a227 30% 70%, var(--beet) 70% 100%);
+}
+.brand-name {
+  font-weight: 800; font-size: 1.15rem; letter-spacing: -0.01em;
+  font-variation-settings: "wdth" 80;
+}
+.status { display: flex; flex-wrap: wrap; gap: 6px 16px; list-style: none; margin: 0; padding: 0; font-size: 0.85rem; color: var(--muted); }
+.status li { display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #a9b0a4; }
+.status li[data-up="true"] .dot { background: var(--leaf); }
+.status li[data-up="false"] { color: var(--beet); }
+.status li[data-up="false"] .dot { background: var(--beet); }
+
+/* ---------- Layout ---------- */
+.layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 340px;
+  gap: 28px;
+  padding: 28px;
+  max-width: 1500px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.panel {
+  background: var(--paper);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+}
+.panel h2 {
+  margin: 0 0 16px;
+  font-size: 1.05rem; font-weight: 800;
+  font-variation-settings: "wdth" 85;
+}
+
+/* ---------- Profile form ---------- */
+.profile form { display: grid; gap: 16px; }
+.row.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+label, legend { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+label > input, label > select {
+  display: block; width: 100%; margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--paper); color: var(--text);
+  font-size: 1rem; font-weight: 500;
+}
+label > input:focus, label > select:focus { border-color: var(--leaf); }
+
+.segmented { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; }
+.segmented legend { width: 100%; margin-bottom: 6px; padding: 0; }
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented label {
+  flex: 1; text-align: center; cursor: pointer;
+  padding: 9px 6px;
+  border: 1px solid var(--line); margin-left: -1px;
+  color: var(--text); font-size: 0.9rem; font-weight: 500;
+  background: var(--paper);
+}
+.segmented label:first-of-type { border-radius: var(--radius-sm) 0 0 var(--radius-sm); margin-left: 0; }
+.segmented label:last-of-type { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.segmented input:checked + label { background: var(--leaf); border-color: var(--leaf); color: #fff; position: relative; }
+.segmented input:focus-visible + label { outline: 3px solid var(--leaf); outline-offset: 2px; position: relative; }
+
+button.primary, button.secondary {
+  border: 0; border-radius: var(--radius-sm); cursor: pointer;
+  padding: 12px 16px; font-weight: 700; font-size: 1rem;
+}
+button.primary { background: var(--leaf); color: #fff; }
+button.primary:hover { background: #255831; }
+button.secondary { background: var(--text); color: #fff; }
+button:disabled { opacity: 0.55; cursor: progress; }
+button.link { background: none; border: 0; padding: 0; color: var(--leaf); font-weight: 600; cursor: pointer; text-decoration: underline; }
+.form-note { margin: 0; min-height: 1.2em; font-size: 0.85rem; color: var(--beet); }
+
+/* ---------- Nutrition Facts label (the hero) ---------- */
+.facts {
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  padding: 10px 16px 12px;
+  max-width: 460px;
+  font-variant-numeric: tabular-nums;
+}
+.facts-title {
+  margin: 0;
+  font-size: clamp(2.4rem, 4vw, 3.1rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variation-settings: "wdth" 62;
+}
+.facts-sub { margin: 4px 0 6px; font-size: 0.95rem; }
+.facts-rule { background: var(--ink); }
+.facts-rule.thick { height: 10px; }
+.facts-rule.medium { height: 5px; }
+.facts-cal {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 2px 0 4px;
+}
+.facts-cal span { font-size: 1.5rem; font-weight: 900; font-variation-settings: "wdth" 70; }
+.facts-cal strong {
+  font-size: clamp(3rem, 6vw, 4rem); font-weight: 900; line-height: 0.95;
+  font-variation-settings: "wdth" 62; letter-spacing: -0.02em;
+}
+.facts-head {
+  display: flex; justify-content: space-between; margin: 4px 0 0;
+  font-size: 0.8rem; font-weight: 700;
+  border-bottom: 1px solid var(--ink); padding-bottom: 2px;
+}
+.facts-row {
+  display: flex; justify-content: space-between;
+  border-bottom: 1px solid var(--ink);
+  padding: 3px 0; font-size: 1rem;
+}
+.facts-row:last-of-type { border-bottom: 0; }
+.facts-row em { font-style: normal; }
+.facts-row > span:last-child { font-weight: 800; }
+.facts-foot { margin: 6px 0 0; font-size: 0.75rem; line-height: 1.4; }
+.facts.is-updated .facts-cal strong { animation: settle 600ms ease-out; }
+@keyframes settle { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Answers ---------- */
+.plan { display: grid; gap: 22px; min-width: 0; }
+.answers { display: grid; gap: 18px; }
+.question {
+  justify-self: end; max-width: 80%;
+  margin: 0; padding: 8px 14px;
+  background: var(--leaf-soft); border-radius: var(--radius-lg) var(--radius-lg) 4px var(--radius-lg);
+  font-size: 0.95rem;
+}
+.answer {
+  background: var(--paper);
+  border-radius: var(--radius-lg);
+  padding: 22px 26px;
+  max-width: 78ch;
+  overflow-x: auto;
+}
+.answer.error { background: var(--beet-soft); color: var(--beet); }
+.answer.thinking { color: var(--muted); }
+.answer h1, .answer h2, .answer h3 {
+  margin: 1.3em 0 0.4em; line-height: 1.2;
+  font-weight: 800; font-variation-settings: "wdth" 80;
+}
+.answer h1 { font-size: 1.35rem; }
+.answer h2 { font-size: 1.2rem; }
+.answer h3 { font-size: 1.05rem; }
+.answer > :first-child { margin-top: 0; }
+.answer p { margin: 0.5em 0; }
+.answer ul, .answer ol { padding-left: 1.3em; margin: 0.4em 0; }
+.answer li { margin: 0.15em 0; }
+.answer hr { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
+.answer table { border-collapse: collapse; width: 100%; margin: 0.6em 0; font-variant-numeric: tabular-nums; }
+.answer th { text-align: left; font-weight: 700; border-bottom: 2px solid var(--text); padding: 6px 10px 6px 0; }
+.answer td { border-bottom: 1px solid var(--line); padding: 7px 10px 7px 0; vertical-align: top; }
+.answer td:last-child, .answer th:last-child { text-align: right; padding-right: 0; }
+
+.followup { display: flex; gap: 10px; max-width: 78ch; }
+.followup input {
+  flex: 1; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper);
+}
+
+/* ---------- Agent activity (a real sequence, so numbered) ---------- */
+.activity-head { display: flex; justify-content: space-between; align-items: baseline; }
+.activity-empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: grid; gap: 2px; }
+.step {
+  counter-increment: step;
+  display: grid; grid-template-columns: 28px 1fr; column-gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.step:first-child { border-top: 0; }
+.step::before {
+  content: counter(step);
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 0.75rem; font-weight: 800;
+  background: var(--page); color: var(--muted);
+}
+.step[data-state="done"]::before { background: var(--leaf); color: #fff; }
+.step[data-state="failed"]::before { background: var(--beet); color: #fff; }
+.step[data-state="running"]::before { background: var(--text); color: #fff; }
+.step-title { font-weight: 600; font-size: 0.95rem; line-height: 1.35; }
+.step-meta { grid-column: 2; display: flex; gap: 10px; font-size: 0.8rem; color: var(--muted); }
+.tag { padding: 0 6px; border-radius: 4px; background: var(--page); color: var(--text); font-weight: 600; }
+.tag.a2a { background: #efe4c6; }
+.step details { grid-column: 2; margin-top: 6px; font-size: 0.8rem; }
+.step summary { cursor: pointer; color: var(--leaf); font-weight: 600; }
+.step pre {
+  margin: 6px 0 0; padding: 10px; max-height: 220px; overflow: auto;
+  background: var(--page); border-radius: var(--radius-sm);
+  white-space: pre-wrap; word-break: break-word; font-size: 0.78rem;
+}
+.step[data-state="running"] .step-title::after {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 8px;
+  border-radius: 50%; background: var(--leaf); vertical-align: middle;
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse { 50% { opacity: 0.2; } }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1180px) {
+  .layout { grid-template-columns: 300px minmax(0, 1fr); }
+  .activity { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .topbar { padding: 12px 16px; }
+  .layout { grid-template-columns: 1fr; padding: 16px; gap: 18px; }
+  .answer { padding: 18px 16px; }
+  .question { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

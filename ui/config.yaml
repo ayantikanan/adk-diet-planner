@@ -1,0 +1,10 @@
+# Web app (ui/app.py): where it runs and the services it talks to / checks.
+host: 127.0.0.1
+port: 8080                                  # open http://127.0.0.1:8080
+adk_url: http://127.0.0.1:8000              # the orchestrator (adk web / adk api_server)
+app_name: orchestrator                      # agents/orchestrator
+health_checks:
+  mcp_server: 127.0.0.1:8002
+  grocery_agent: http://localhost:8001/a2a/grocery_agent/.well-known/agent-card.json
+  workout_agent: http://localhost:8001/a2a/workout_agent/.well-known/agent-card.json
+  telemetry_collector: 127.0.0.1:4318

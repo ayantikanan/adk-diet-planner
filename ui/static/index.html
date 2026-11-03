@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Diet Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Daily Diet Planner</span>
+    </div>
+    <ul class="status" id="status" aria-label="Service status">
+      <li data-service="orchestrator"><span class="dot"></span>Planner</li>
+      <li data-service="tools"><span class="dot"></span>Nutrition tools</li>
+      <li data-service="grocery_agent"><span class="dot"></span>Grocery agent</li>
+      <li data-service="workout_agent"><span class="dot"></span>Workout agent</li>
+      <li data-service="telemetry"><span class="dot"></span>Telemetry</li>
+    </ul>
+  </header>
+
+  <main class="layout">
+    <!-- Profile form -->
+    <section class="panel profile" aria-labelledby="profile-title">
+      <h2 id="profile-title">Your details</h2>
+      <form id="profile-form" novalidate>
+        <div class="row two">
+          <label>Age
+            <input name="age" type="number" min="15" max="100" value="35" required>
+          </label>
+          <fieldset class="segmented">
+            <legend>Sex</legend>
+            <input type="radio" id="sex-f" name="sex" value="female" checked><label for="sex-f">Female</label>
+            <input type="radio" id="sex-m" name="sex" value="male"><label for="sex-m">Male</label>
+          </fieldset>
+        </div>
+        <div class="row two">
+          <label>Weight (kg)
+            <input name="weight" type="number" min="30" max="300" step="0.1" value="75" required>
+          </label>
+          <label>Height (cm)
+            <input name="height" type="number" min="120" max="230" value="165" required>
+          </label>
+        </div>
+        <label>Activity
+          <select name="activity">
+            <option value="sedentary">Mostly sitting</option>
+            <option value="lightly active" selected>Lightly active</option>
+            <option value="moderately active">Moderately active</option>
+            <option value="very active">Very active</option>
+          </select>
+        </label>
+        <fieldset class="segmented three">
+          <legend>Goal</legend>
+          <input type="radio" id="goal-lose" name="goal" value="lose weight" checked><label for="goal-lose">Lose</label>
+          <input type="radio" id="goal-keep" name="goal" value="maintain my weight"><label for="goal-keep">Maintain</label>
+          <input type="radio" id="goal-gain" name="goal" value="gain weight"><label for="goal-gain">Gain</label>
+        </fieldset>
+        <fieldset class="segmented">
+          <legend>Diet</legend>
+          <input type="radio" id="diet-all" name="diet" value="non-vegetarian" checked><label for="diet-all">Eats everything</label>
+          <input type="radio" id="diet-veg" name="diet" value="vegetarian"><label for="diet-veg">Vegetarian</label>
+        </fieldset>
+        <button type="submit" class="primary" id="build-btn">Build my plan</button>
+        <p class="form-note" id="form-note" role="status"></p>
+      </form>
+    </section>
+
+    <!-- Plan -->
+    <section class="plan" aria-live="polite">
+      <article class="facts" id="facts" aria-label="Daily targets">
+        <h1 class="facts-title">Daily Targets</h1>
+        <p class="facts-sub" id="facts-sub">Fill in your details to build today's plan.</p>
+        <div class="facts-rule thick"></div>
+        <div class="facts-cal">
+          <span>Calories</span>
+          <strong id="kcal">&mdash;</strong>
+        </div>
+        <div class="facts-rule medium"></div>
+        <p class="facts-head"><span>Macro</span><span>% of calories</span></p>
+        <div class="facts-row"><span><b>Protein</b> <em id="protein">&mdash;</em></span><span id="protein-pct">&mdash;</span></div>
+        <div class="facts-row"><span><b>Carbohydrates</b> <em id="carbs">&mdash;</em></span><span id="carbs-pct">&mdash;</span></div>
+        <div class="facts-row"><span><b>Fat</b> <em id="fat">&mdash;</em></span><span id="fat-pct">&mdash;</span></div>
+        <div class="facts-rule thick"></div>
+        <p class="facts-foot">Calculated with the Mifflin-St Jeor equation. General guidance, not medical advice.</p>
+      </article>
+
+      <div class="answers" id="answers"></div>
+
+      <form class="followup" id="followup-form" hidden>
+        <label for="followup-input" class="visually-hidden">Ask a follow-up</label>
+        <input id="followup-input" type="text" placeholder="Ask a follow-up, e.g. swap the dinner for something vegetarian" autocomplete="off">
+        <button type="submit" class="secondary">Send</button>
+      </form>
+    </section>
+
+    <!-- Agent activity -->
+    <aside class="panel activity" aria-labelledby="activity-title">
+      <div class="activity-head">
+        <h2 id="activity-title">Agent activity</h2>
+        <button type="button" class="link" id="new-plan" hidden>Start over</button>
+      </div>
+      <p class="activity-empty" id="activity-empty">Each step the planner takes appears here: nutrition tools it calls, and the agents it hands work to.</p>
+      <ol class="steps" id="steps"></ol>
+    </aside>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
