@@ -277,3 +277,25 @@ button.link { background: none; border: 0; padding: 0; color: var(--leaf); font-
 }
 .trace-link:hover { background: var(--leaf-soft); }
 .trace-link[hidden] { display: none; }
+.followup[hidden] { display: none; }
+
+/* ---------- Memory: welcome note and past plans ---------- */
+.memory-note {
+  margin: -6px 0 14px; padding: 8px 12px;
+  background: var(--leaf-soft); border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+.memory-note[hidden], .history[hidden] { display: none; }
+.history { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.history h2 { margin-bottom: 8px; }
+.history-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.history-list button {
+  display: grid; width: 100%; gap: 2px; text-align: left; cursor: pointer;
+  padding: 9px 0; border: 0; border-bottom: 1px solid var(--line); background: none;
+}
+.history-list li:last-child button { border-bottom: 0; }
+.history-list button:hover .history-title { color: var(--leaf); }
+.history-list button[aria-current="true"] .history-title { color: var(--leaf); font-weight: 700; }
+.history-title { font-size: 0.85rem; font-weight: 600; line-height: 1.35; }
+.history-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 0.75rem; color: var(--muted); }
+#forget-btn { font-size: 0.85rem; color: var(--beet); }

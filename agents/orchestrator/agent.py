@@ -18,6 +18,7 @@ from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 
 from .fallback_model import FallbackGemini
 from .guardrails import check_input, check_output, check_tool
+from .memory import remember_profile
 from .telemetry import export_logs
 
 CONFIG = yaml.safe_load((Path(__file__).parent / "config.yaml").read_text(encoding="utf-8"))
@@ -61,4 +62,5 @@ root_agent = LlmAgent(
     before_model_callback=check_input,   # unsafe or off-topic messages never reach Gemini
     before_tool_callback=check_tool,     # out-of-range tool arguments are refused
     after_model_callback=check_output,   # disclaimer added, secrets removed
+    after_tool_callback=remember_profile,  # remembers the user's profile (memory.py)
 )

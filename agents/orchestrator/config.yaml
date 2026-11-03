@@ -34,6 +34,12 @@ instruction: |
   - grocery_agent: turns the chosen dishes into a shopping list.
   - workout_agent: suggests a daily workout and the calories it burns.
 
+  What you remember about this user from earlier conversations (empty if nothing):
+  {user:profile_text?}
+  If the user asks for a plan without giving details and you remember them above,
+  start with "Welcome back", repeat the remembered details in one short line so they
+  can correct anything, and use them instead of asking again.
+
   Follow these steps:
   1. If you don't know the user's age, sex, weight (kg), height (cm), activity level
      (sedentary / light / moderate / active), goal (lose / maintain / gain) and whether

@@ -125,9 +125,11 @@ function updateFacts(targets) {
 }
 
 // ---------- Activity steps ----------
-const openSteps = new Map(); // call id or name -> { li, started }
+// `at` is an event timestamp in seconds (used when replaying a past plan).
+const openSteps = new Map(); // call id or name -> { li, started, call }
+const clock = (at) => (at ? at * 1000 : performance.now());
 
-function addStep(call) {
+function addStep(call, at) {
   $("activity-empty").hidden = true;
   const info = describe(call.name);
   const li = document.createElement("li");
@@ -137,10 +139,10 @@ function addStep(call) {
     <div class="step-meta"><span class="tag ${info.kind}">${info.tag}</span><span class="time">running</span></div>`;
   li.querySelector(".step-title").textContent = info.running(call.args || {});
   $("steps").appendChild(li);
-  openSteps.set(call.id || call.name, { li, started: performance.now(), call });
+  openSteps.set(call.id || call.name, { li, started: clock(at), call });
 }
 
-function finishStep(resp) {
+function finishStep(resp, at) {
   const key = openSteps.has(resp.id) ? resp.id : resp.name;
   const entry = openSteps.get(key);
   if (!entry) return;
@@ -153,7 +155,7 @@ function finishStep(resp) {
   li.dataset.state = failed ? "failed" : "done";
   li.querySelector(".step-title").textContent = failed
     ? `${info.done(call.args || {})} \u2014 failed` : info.done(call.args || {});
-  li.querySelector(".time").textContent = `${((performance.now() - started) / 1000).toFixed(1)} s`;
+  li.querySelector(".time").textContent = `${(Math.max(0, clock(at) - started) / 1000).toFixed(1)} s`;
 
   const parsed = parseToolResult(response);
   const output = parsed ? JSON.stringify(parsed, null, 2)
@@ -166,15 +168,169 @@ function finishStep(resp) {
   if (resp.name === "calculate_daily_calories") updateFacts(parsed);
 }
 
+// One orchestrator event -> steps and answer text. Returns the answer text, if any.
+function applyEvent(event, answer, at) {
+  let text = null;
+  for (const part of event.content?.parts || []) {
+    if (part.functionCall) addStep(part.functionCall, at);
+    if (part.functionResponse) finishStep(part.functionResponse, at);
+    if (part.text && !part.thought && event.author !== "user") {
+      text = part.text;
+      answer.className = "answer";
+      answer.innerHTML = renderMarkdown(text);
+    }
+  }
+  return text;
+}
+
+function addQuestion(text) {
+  const q = document.createElement("p");
+  q.className = "question";
+  q.textContent = text;
+  $("answers").appendChild(q);
+}
+
+function addAnswer(text) {
+  const answer = document.createElement("article");
+  answer.className = "answer thinking";
+  answer.textContent = text;
+  $("answers").appendChild(answer);
+  return answer;
+}
+
+// ---------- Memory: one lasting user id per browser ----------
+const USER_KEY = "dietPlannerUserId";
+let userId = null;
+try { userId = localStorage.getItem(USER_KEY); } catch { /* private mode: no memory */ }
+
+function rememberUserId(id) {
+  userId = id;
+  try { localStorage.setItem(USER_KEY, id); } catch { /* ignore */ }
+}
+
+const FORM_VALUES = {
+  activity: { sedentary: "sedentary", light: "lightly active", moderate: "moderately active", active: "very active" },
+  goal: { lose: "lose weight", maintain: "maintain my weight", gain: "gain weight" },
+};
+
+function setRadio(form, name, value) {
+  const input = form.querySelector(`input[name="${name}"][value="${value}"]`);
+  if (input) input.checked = true;
+}
+
+async function loadMemory() {
+  if (!userId) return;
+  try {
+    const memory = await (await fetch(`/api/users/${userId}/memory`)).json();
+    const p = memory.profile;
+    if (!p) return;
+    const form = $("profile-form");
+    form.elements.age.value = p.age;
+    form.elements.weight.value = p.weight_kg;
+    form.elements.height.value = p.height_cm;
+    if (FORM_VALUES.activity[p.activity]) form.elements.activity.value = FORM_VALUES.activity[p.activity];
+    setRadio(form, "sex", p.sex);
+    setRadio(form, "goal", FORM_VALUES.goal[p.goal]);
+    if (memory.vegetarian !== null && memory.vegetarian !== undefined) {
+      setRadio(form, "diet", memory.vegetarian ? "vegetarian" : "non-vegetarian");
+    }
+    $("memory-note").hidden = false;
+  } catch { /* memory is optional */ }
+}
+
+async function refreshHistory() {
+  if (!userId) return;
+  try {
+    const items = await (await fetch(`/api/users/${userId}/history`)).json();
+    const list = $("history-list");
+    list.innerHTML = "";
+    for (const item of items) {
+      const li = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.session = item.session_id;
+      button.innerHTML = '<span class="history-title"></span><span class="history-meta"><span></span><span></span></span>';
+      button.querySelector(".history-title").textContent = item.title;
+      const [when, kcal] = button.querySelectorAll(".history-meta span");
+      when.textContent = item.updated
+        ? new Date(item.updated * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
+      kcal.textContent = item.kcal ? `${item.kcal.toLocaleString()} kcal` : "";
+      button.addEventListener("click", () => openPast(item.session_id));
+      li.appendChild(button);
+      list.appendChild(li);
+    }
+    $("history").hidden = items.length === 0;
+    markCurrent();
+  } catch { /* history is optional */ }
+}
+
+function markCurrent() {
+  for (const b of document.querySelectorAll("#history-list button")) {
+    b.setAttribute("aria-current", String(Boolean(session && b.dataset.session === session.session_id)));
+  }
+}
+
+// Shows a past conversation again, and lets the user carry on with it.
+async function openPast(sessionId) {
+  if (busy) return;
+  resetView();
+  try {
+    const r = await fetch(`/api/users/${userId}/history/${sessionId}`);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "Couldn't open that plan.");
+    const { events } = await r.json();
+    let answer = null;
+    for (const event of events) {
+      const parts = event.content?.parts || [];
+      if (event.author === "user") {
+        const text = parts.filter((p) => p.text).map((p) => p.text).join(" ");
+        if (!text) continue;
+        addQuestion(text);
+        answer = addAnswer("No answer was saved for this message.");
+      } else if (answer) {
+        applyEvent(event, answer, event.timestamp);
+      }
+    }
+    for (const { li } of openSteps.values()) li.dataset.state = "failed";
+    openSteps.clear();
+    session = { session_id: sessionId, user_id: userId };
+    $("followup-form").hidden = false;
+    $("new-plan").hidden = false;
+    markCurrent();
+    showTraceLink();
+  } catch (err) {
+    addAnswer(err.message).className = "answer error";
+  }
+}
+
+async function forgetMe() {
+  if (!userId || !window.confirm("Forget your saved details and delete all your past plans?")) return;
+  try {
+    await fetch(`/api/users/${userId}`, { method: "DELETE" });
+  } catch { /* still forget locally */ }
+  try { localStorage.removeItem(USER_KEY); } catch { /* ignore */ }
+  userId = null;
+  session = null;
+  resetView();
+  $("profile-form").reset();
+  $("memory-note").hidden = true;
+  $("history").hidden = true;
+  $("history-list").innerHTML = "";
+}
+
 // ---------- Conversation ----------
 async function ensureSession() {
   if (session) return session;
-  const r = await fetch("/api/sessions", { method: "POST" });
+  const r = await fetch("/api/sessions", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ user_id: userId }),
+  });
   if (!r.ok) {
     const { detail } = await r.json().catch(() => ({}));
     throw new Error(detail || "The planner isn't running. Start the orchestrator and try again.");
   }
   session = await r.json();
+  rememberUserId(session.user_id);
   return session;
 }
 
@@ -185,21 +341,12 @@ function setBusy(value) {
   for (const el of $("followup-form").elements) el.disabled = value;
 }
 
-async function send(message, { showQuestion }) {
+async function send(message) {
   if (busy) return;
   $("form-note").textContent = "";
   setBusy(true);
-
-  if (showQuestion) {
-    const q = document.createElement("p");
-    q.className = "question";
-    q.textContent = message;
-    $("answers").appendChild(q);
-  }
-  const answer = document.createElement("article");
-  answer.className = "answer thinking";
-  answer.textContent = "Working on it\u2026 follow the steps under Agent activity.";
-  $("answers").appendChild(answer);
+  addQuestion(message);
+  const answer = addAnswer("Working on it\u2026 follow the steps under Agent activity.");
 
   let finalText = "";
   try {
@@ -223,21 +370,14 @@ async function send(message, { showQuestion }) {
         if (!line) continue;
         const event = JSON.parse(line.slice(5));
         if (event.error || event.errorMessage) throw new Error(event.error || event.errorMessage);
-        for (const part of event.content?.parts || []) {
-          if (part.functionCall) addStep(part.functionCall);
-          if (part.functionResponse) finishStep(part.functionResponse);
-          if (part.text && !part.thought && event.author !== "user") {
-            finalText = part.text;
-            answer.className = "answer";
-            answer.innerHTML = renderMarkdown(finalText);
-          }
-        }
+        finalText = applyEvent(event, answer) || finalText;
       }
     }
     if (!finalText) throw new Error("The planner finished without an answer. Try again in a moment.");
     $("followup-form").hidden = false;
     $("new-plan").hidden = false;
     showTraceLink();
+    refreshHistory();
   } catch (err) {
     answer.className = "answer error";
     answer.textContent = /fetch|network/i.test(err.message)
@@ -257,6 +397,18 @@ function profileMessage(form) {
     `${f.get("activity")}, want to ${f.get("goal")}, ${f.get("diet")}.`;
 }
 
+function resetView() {
+  $("answers").innerHTML = "";
+  $("steps").innerHTML = "";
+  openSteps.clear();
+  $("activity-empty").hidden = false;
+  $("followup-form").hidden = true;
+  $("new-plan").hidden = true;
+  $("trace-link").hidden = true;
+  for (const id of ["kcal", "protein", "carbs", "fat", "protein-pct", "carbs-pct", "fat-pct"]) $(id).textContent = "\u2014";
+  $("facts-sub").textContent = "Fill in your details to build today's plan.";
+}
+
 $("profile-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const form = e.currentTarget;
@@ -265,7 +417,7 @@ $("profile-form").addEventListener("submit", (e) => {
     form.reportValidity();
     return;
   }
-  send(profileMessage(form), { showQuestion: true });
+  send(profileMessage(form));
 });
 
 $("followup-form").addEventListener("submit", (e) => {
@@ -274,23 +426,16 @@ $("followup-form").addEventListener("submit", (e) => {
   const text = input.value.trim();
   if (!text) return;
   input.value = "";
-  send(text, { showQuestion: true });
+  send(text);
 });
 
 $("new-plan").addEventListener("click", () => {
   session = null;
-  $("answers").innerHTML = "";
-  $("steps").innerHTML = "";
-  $("activity-empty").hidden = false;
-  $("followup-form").hidden = true;
-  $("new-plan").hidden = true;
-  $("trace-link").hidden = true;
-  for (const id of ["kcal", "protein", "carbs", "fat", "protein-pct", "carbs-pct", "fat-pct"]) $(id).textContent = "\u2014";
-  $("facts-sub").textContent = "Fill in your details to build today's plan.";
+  resetView();
+  markCurrent();
 });
 
-refreshHealth();
-setInterval(refreshHealth, 10000);
+$("forget-btn").addEventListener("click", forgetMe);
 
 // ---------- Links to Grafana and Jaeger ----------
 fetch("/api/links").then((r) => r.json()).then((links) => {
@@ -308,3 +453,9 @@ async function showTraceLink() {
     $("trace-link").hidden = false;
   } catch { /* tracing is optional */ }
 }
+
+// ---------- Start ----------
+refreshHealth();
+setInterval(refreshHealth, 10000);
+loadMemory();
+refreshHistory();

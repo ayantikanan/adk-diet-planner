@@ -29,6 +29,7 @@
     <!-- Profile form -->
     <section class="panel profile" aria-labelledby="profile-title">
       <h2 id="profile-title">Your details</h2>
+      <p class="memory-note" id="memory-note" hidden>Welcome back. Your details from last time are filled in.</p>
       <form id="profile-form" novalidate>
         <div class="row two">
           <label>Age
@@ -70,6 +71,11 @@
         <button type="submit" class="primary" id="build-btn">Build my plan</button>
         <p class="form-note" id="form-note" role="status"></p>
       </form>
+      <div class="history" id="history" hidden>
+        <h2>Past plans</h2>
+        <ul class="history-list" id="history-list"></ul>
+        <button type="button" class="link" id="forget-btn">Forget me</button>
+      </div>
     </section>
 
     <!-- Plan -->

@@ -6,3 +6,9 @@ diet_agent/.adk/
 
 .env
 .adk/
+
+# Python caches and local environments
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/

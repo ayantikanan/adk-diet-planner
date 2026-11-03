@@ -157,3 +157,15 @@ Open **http://127.0.0.1:8080**, fill in the profile and click **Build my plan**.
 `ui/app.py` (FastAPI) serves the page and relays the orchestrator's live events
 (`/run_sse`), so the browser never talks to the agents directly. Settings, including the
 Grafana and Jaeger addresses, are in `ui/config.yaml`.
+
+---
+
+## Memory
+
+- **Remembers you:** after a plan, the orchestrator saves the profile in ADK `user:` state
+  (`agents/orchestrator/memory.py`, an `after_tool_callback`). The instruction reads it back with
+  `{user:profile_text?}`, so a returning user can just say "make me a plan".
+- **Past plans:** the web app lists earlier conversations; clicking one replays it (plan, targets and
+  every agent step) and the conversation can continue.
+- **Survives restarts:** conversations are stored in SQLite at `agents/orchestrator/.adk/session.db`.
+- **Forget me:** deletes the saved profile and every past conversation.

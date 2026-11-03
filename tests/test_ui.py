@@ -34,3 +34,10 @@ def test_links_point_to_grafana_and_jaeger():
 
 def test_chat_needs_a_session():
     assert client.post("/api/chat", json={"message": "hi"}).status_code == 422
+
+
+def test_memory_endpoints_reject_bad_ids():
+    assert client.get("/api/users/../../etc/history").status_code in (400, 404)
+    assert client.get("/api/users/not-a-web-id/memory").status_code == 400
+    assert client.get("/api/users/web-abcdef123456/history/bad id!").status_code == 400
+    assert client.delete("/api/users/robert'); DROP TABLE").status_code in (400, 404, 405)
