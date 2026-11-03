@@ -54,3 +54,14 @@ def test_other_tools_are_ignored_and_results_unchanged():
 
 def test_profile_text_is_empty_without_a_profile():
     assert profile_text({}, True) == ""
+
+
+def test_allergies_and_dislikes_are_remembered():
+    ctx = Context()
+    remember_profile(Tool("calculate_daily_calories"), PROFILE, ctx, mcp(TARGETS))
+    args = {"meal_type": "lunch", "vegetarian": False, "avoid_allergens": ["Milk", "nuts"], "dislikes": ["Mushrooms"]}
+    tool_result = mcp({"options": [], "filtered_out": {"allergens": ["dairy", "nuts"], "dislikes": ["mushroom"]}})
+    remember_profile(Tool("get_meal_options"), args, ctx, tool_result)
+    assert ctx.state["user:allergies"] == ["dairy", "nuts"]
+    assert ctx.state["user:dislikes"] == ["mushroom"]
+    assert "allergies: dairy, nuts, dislikes: mushroom" in ctx.state["user:profile_text"]

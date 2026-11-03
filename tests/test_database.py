@@ -60,3 +60,49 @@ def test_tool_connection_is_read_only():
 def test_sql_injection_is_harmless():
     assert "error" in get_meal_options("lunch'; DROP TABLE meals; --")
     assert get_meal_options("lunch")["options"]  # table still there
+
+
+# ---------- Allergies and dislikes ----------
+@pytest.mark.parametrize("allergen", db.ALLERGENS)
+def test_allergen_filter_removes_every_meal_with_it(allergen):
+    for meal_type in db.MEAL_TYPES:
+        for m in get_meal_options(meal_type, avoid_allergens=[allergen])["options"]:
+            assert allergen not in m["allergens"], m["name"]
+
+
+def test_common_allergies_still_leave_options_for_every_meal():
+    common = ["dairy", "eggs", "gluten", "nuts", "peanuts"]
+    for meal_type in db.MEAL_TYPES:
+        assert len(get_meal_options(meal_type, avoid_allergens=common)["options"]) >= 2, meal_type
+
+
+def test_allergen_aliases_and_unknown_allergens():
+    result = get_meal_options("snack", avoid_allergens=["Milk", "tree nuts", "peanut"])
+    assert result["filtered_out"]["allergens"] == ["dairy", "nuts", "peanuts"]
+    assert "error" in get_meal_options("snack", avoid_allergens=["kryptonite"])
+
+
+def test_dislikes_match_names_and_ingredients_in_singular_or_plural():
+    names = [m["name"] for m in get_meal_options("dinner", dislikes=["Chickpeas", "salmon"])["options"]]
+    assert names and not any("chana" in n.lower() or "salmon" in n.lower() for n in names)
+
+
+def test_dislikes_cannot_inject_sql():
+    result = get_meal_options("lunch", dislikes=["') OR 1=1 --", "x' ; DROP TABLE meals"])
+    assert result["options"]  # odd input is ignored, the table is fine
+    assert get_meal_options("lunch")["options"]
+
+
+def test_bad_allergen_in_seed_is_rejected(tmp_path):
+    bad = [{"name": "Moon cake", "meal_type": "snack", "calories": 100, "protein_g": 2, "carbs_g": 20,
+            "fat_g": 1, "vegetarian": True, "allergens": ["moon dust"], "ingredients": []}]
+    seed = tmp_path / "seed.json"
+    seed.write_text(json.dumps(bad))
+    with pytest.raises(ValueError, match="Moon cake"):
+        db.build_database(db_path=tmp_path / "test.db", seed_path=seed)
+
+
+def test_every_seed_meal_lists_ingredients_and_known_allergens():
+    for meal in json.loads(db.SEED_PATH.read_text(encoding="utf-8")):
+        assert meal["ingredients"], meal["name"]
+        assert set(meal["allergens"]) <= set(db.ALLERGENS), meal["name"]
