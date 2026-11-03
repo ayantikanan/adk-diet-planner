@@ -418,6 +418,7 @@ function resetView() {
   $("followup-form").hidden = true;
   $("new-plan").hidden = true;
   $("trace-link").hidden = true;
+  $("cloud-trace-run").hidden = true;
   $("plan-actions").hidden = true;
   $("week").hidden = true;
   $("week-tabs").innerHTML = "";
@@ -455,18 +456,33 @@ $("new-plan").addEventListener("click", () => {
 
 $("forget-btn").addEventListener("click", forgetMe);
 
-// ---------- Links to Grafana and Jaeger ----------
+// ---------- Links to Grafana, Jaeger and Cloud Trace ----------
+// In Cloud Shell Web Preview this page is https://8080-<host>.cloudshell.dev, and Grafana and
+// Jaeger are https://3000-<host> and https://16686-<host>: rewrite the localhost links to match.
+const PREVIEW = location.hostname.match(/^\d+-(.+\.cloudshell\.dev)$/);
+function publicUrl(url) {
+  if (!PREVIEW || !url) return url;
+  return url.replace(/^http:\/\/(?:localhost|127\.0\.0\.1):(\d+)/, (_, port) => `https://${port}-${PREVIEW[1]}`);
+}
 fetch("/api/links").then((r) => r.json()).then((links) => {
-  if (links.dashboard) $("dashboard-link").href = links.dashboard;
-  if (links.traces) $("traces-link").href = links.traces;
+  if (links.dashboard) $("dashboard-link").href = publicUrl(links.dashboard);
+  if (links.traces) $("traces-link").href = publicUrl(links.traces);
+  if (links.cloud_trace) {
+    $("cloud-trace-link").href = links.cloud_trace;
+    $("cloud-trace-link").hidden = false;
+  }
 }).catch(() => {});
 
 async function showTraceLink() {
   try {
     const r = await fetch(`/api/trace/${session.session_id}`);
-    const { url, trace_id } = await r.json();
+    const { url, trace_id, cloud_url } = await r.json();
+    if (cloud_url) {
+      $("cloud-trace-run").href = cloud_url;
+      $("cloud-trace-run").hidden = false;
+    }
     if (!url) return;
-    $("trace-link").href = url;
+    $("trace-link").href = publicUrl(url);
     $("trace-link").textContent = trace_id ? "Open this run in Jaeger" : "Open recent runs in Jaeger";
     $("trace-link").hidden = false;
   } catch { /* tracing is optional */ }

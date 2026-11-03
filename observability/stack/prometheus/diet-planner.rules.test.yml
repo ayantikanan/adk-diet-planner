@@ -51,7 +51,24 @@ tests:
         alertname: TelemetryPipelineDown
         exp_alerts: []
 
-  # 3. Half the plans take longer than 60 s: the speed SLO alert fires.
+  # 3. No traffic at all: nothing fires (an idle planner is not a slow one).
+  - interval: 1m
+    input_series:
+      - series: 'diet_plan_duration_seconds_bucket{kind="day", le="60"}'
+        values: '4x40'
+      - series: 'diet_plan_duration_seconds_count{kind="day"}'
+        values: '4x40'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: PlansTooSlow
+        exp_alerts: []
+    promql_expr_test:
+      - expr: round(diet:plan_slow_ratio:rate1h, 0.01)
+        eval_time: 40m
+        exp_samples:
+          - value: 0
+
+  # 4. Half the plans take longer than 60 s: the speed SLO alert fires.
   - interval: 1m
     input_series:
       - series: 'diet_plan_duration_seconds_bucket{kind="week", le="60"}'
@@ -67,7 +84,7 @@ tests:
               summary: "50% of plans took longer than 60 s in the last hour"
               description: "The speed SLO (90% under 60 s) is being missed. Check 'LLM call latency' and 'A2A round trip' on the dashboard."
 
-  # 4. Many blocked messages, and the collector goes down.
+  # 5. Many blocked messages, and the collector goes down.
   - interval: 1m
     input_series:
       - series: 'diet_guardrail_triggers_total{rule="prompt_injection"}'

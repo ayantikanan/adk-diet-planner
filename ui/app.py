@@ -20,6 +20,7 @@ Then open http://127.0.0.1:8080
 
 import asyncio
 import json
+import os
 import re
 import sys
 import uuid
@@ -273,12 +274,17 @@ async def health() -> dict:
     }
 
 
-LINKS = UI.get("links", {})
+LINKS = dict(UI.get("links", {}))
+# On Google Cloud (Cloud Shell), traces also go to Cloud Trace: set CLOUD_TRACE_PROJECT to the project id.
+if os.getenv("CLOUD_TRACE_PROJECT"):
+    _console = f"https://console.cloud.google.com/traces/list?project={os.environ['CLOUD_TRACE_PROJECT']}"
+    LINKS["cloud_trace"] = _console
+    LINKS["cloud_trace_run"] = _console + "&tid={trace_id}"
 
 
 @app.get("/api/links")
 async def links() -> dict:
-    """Grafana and Jaeger addresses from ui/config.yaml."""
+    """Grafana and Jaeger addresses from ui/config.yaml (plus Cloud Trace on Google Cloud)."""
     return LINKS
 
 
@@ -297,7 +303,10 @@ async def latest_trace(session_id: str) -> dict:
         return {"url": LINKS.get("traces")}
     latest = max(spans, key=lambda s: s.get("start_time") or 0)
     trace_id = f"{int(latest['trace_id']):032x}"
-    return {"trace_id": trace_id, "url": LINKS["trace"].format(trace_id=trace_id)}
+    result = {"trace_id": trace_id, "url": LINKS["trace"].format(trace_id=trace_id)}
+    if "cloud_trace_run" in LINKS:
+        result["cloud_url"] = LINKS["cloud_trace_run"].format(trace_id=trace_id)
+    return result
 
 
 if __name__ == "__main__":

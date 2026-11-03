@@ -1,0 +1,13 @@
+# Google Cloud Shell add-on: the collector also sends traces and logs to Cloud Trace
+# and Cloud Logging in your project (see otel-collector.gcp.yaml). Start with:
+#   docker compose -f observability/stack/docker-compose.yml -f observability/stack/docker-compose.gcp.yml up -d
+# Needs (once): gcloud auth application-default login
+services:
+  otel-collector:
+    command: ["--config=/etc/otelcol/config.yaml", "--config=/etc/otelcol/gcp.yaml"]
+    environment:
+      GOOGLE_CLOUD_PROJECT: "${GOOGLE_CLOUD_PROJECT:?set GOOGLE_CLOUD_PROJECT to your project id first}"
+      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcp/adc.json
+    volumes:
+      - ./otel-collector.gcp.yaml:/etc/otelcol/gcp.yaml:ro
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/etc/gcp/adc.json:ro

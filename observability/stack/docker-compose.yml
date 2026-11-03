@@ -6,6 +6,7 @@
 #   Grafana     http://localhost:3000    dashboard: Diet Planner - Agents, MCP & LLM
 #   Jaeger UI   http://localhost:16686   traces
 #   Prometheus  http://localhost:9090    raw metrics, SLIs and alerts (/alerts)
+#   Alertmanager http://localhost:9093   sends firing alerts to Slack
 # The services send OTLP to http://localhost:4318 (see otel.env).
 name: stack
 
@@ -54,6 +55,13 @@ services:
       - ./prometheus:/etc/prometheus/rules:ro
     ports:
       - "9090:9090"
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    volumes:
+      - ./alertmanager:/etc/alertmanager:ro   # alertmanager.yml + secrets/slack_webhook_url
+    ports:
+      - "9093:9093"
 
   loki:
     image: grafana/loki:3.5.3

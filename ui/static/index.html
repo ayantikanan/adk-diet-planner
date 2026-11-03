@@ -21,7 +21,7 @@
       <li data-service="grocery_agent"><span class="dot"></span>Grocery agent</li>
       <li data-service="workout_agent"><span class="dot"></span>Workout agent</li>
       <li data-service="telemetry"><span class="dot"></span>Telemetry</li>
-      <li class="status-links"><a id="dashboard-link" href="http://localhost:3000" target="_blank" rel="noopener">Grafana dashboard</a><a id="traces-link" href="http://localhost:16686" target="_blank" rel="noopener">Jaeger traces</a></li>
+      <li class="status-links"><a id="dashboard-link" href="http://localhost:3000" target="_blank" rel="noopener">Grafana dashboard</a><a id="traces-link" href="http://localhost:16686" target="_blank" rel="noopener">Jaeger traces</a><a id="cloud-trace-link" href="#" target="_blank" rel="noopener" hidden>Cloud Trace</a></li>
     </ul>
   </header>
 
@@ -144,6 +144,7 @@
       <p class="activity-empty" id="activity-empty">Each step the planner takes appears here: nutrition tools it calls, and the agents it hands work to.</p>
       <ol class="steps" id="steps"></ol>
       <a class="trace-link" id="trace-link" href="#" target="_blank" rel="noopener" hidden>Open this run in Jaeger</a>
+      <a class="trace-link" id="cloud-trace-run" href="#" target="_blank" rel="noopener" hidden>Open this run in Cloud Trace</a>
     </aside>
   </main>
 

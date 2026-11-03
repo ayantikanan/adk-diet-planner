@@ -10,7 +10,7 @@ combination, so the numbers are exact and the same input gives the same week.
 from itertools import product
 
 from mcp_server.db import MEAL_TYPES, fetch_meals
-from mcp_server.tools.meal_tool import _allergens, _dislikes
+from mcp_server.tools.meal_tool import _allergens, _dislikes, allergen_filters
 
 DAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 REPEAT_PENALTY = 0.08  # one repeat "costs" the same as missing the target by 8%
@@ -35,6 +35,8 @@ def build_week_menu(
     if unknown:
         return {"error": f"unknown allergen(s): {', '.join(unknown)}"}
     words = _dislikes(dislikes or [])
+    for allergen in allergens:
+        allergen_filters.add(1, {"allergen": allergen})
 
     options = {m: fetch_meals(m, vegetarian, allergens, words, limit=50) for m in MEAL_TYPES}
     missing = [m for m, meals in options.items() if not meals]

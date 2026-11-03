@@ -47,6 +47,14 @@ datasources:
         customQuery: true
         query: '{service_namespace="diet-planner"} | trace_id="$${__trace.traceId}"'
 
+  - name: Alertmanager
+    uid: alertmanager
+    type: alertmanager
+    url: http://alertmanager:9093
+    jsonData:
+      implementation: prometheus
+      handleGrafanaManagedAlerts: false
+
   - name: Loki
     uid: loki
     type: loki

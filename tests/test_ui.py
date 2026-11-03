@@ -51,3 +51,14 @@ def test_answer_detection_for_the_sli():
     assert not ui_app._has_answer(ui_app._event(question))
     assert not ui_app._has_answer(ui_app._event(tool_call))
     assert ui_app._event("data: not json") == {}
+
+
+def test_cloud_trace_links_on_google_cloud(monkeypatch):
+    monkeypatch.setenv("CLOUD_TRACE_PROJECT", "demo-project")
+    spec_gcp = importlib.util.spec_from_file_location("ui_app_gcp", APP_PATH)
+    app_gcp = importlib.util.module_from_spec(spec_gcp)
+    spec_gcp.loader.exec_module(app_gcp)
+    links = TestClient(app_gcp.app).get("/api/links").json()
+    assert links["cloud_trace"].endswith("project=demo-project")
+    assert links["cloud_trace_run"].endswith("&tid={trace_id}")
+    assert "cloud_trace" not in client.get("/api/links").json()  # not on the laptop

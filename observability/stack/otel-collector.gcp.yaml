@@ -1,0 +1,20 @@
+# Google Cloud add-on for the OTel Collector (used in Cloud Shell, see docker-compose.gcp.yml).
+# Loaded ON TOP of otel-collector.yaml: everything still goes to Tempo, Jaeger,
+# Prometheus and Loki, and traces and logs ALSO go to your Google Cloud project:
+#   Cloud Trace    https://console.cloud.google.com/traces/list
+#   Cloud Logging  https://console.cloud.google.com/logs   (log name: diet-planner)
+# Logs are linked to their trace in Cloud Logging, like Loki -> Tempo in Grafana.
+# Metrics stay in Prometheus (Cloud Monitoring custom metrics need billing).
+
+exporters:
+  googlecloud:
+    project: ${env:GOOGLE_CLOUD_PROJECT}
+    log:
+      default_log_name: diet-planner
+
+service:
+  pipelines:
+    traces:
+      exporters: [otlp/jaeger, otlp/tempo, spanmetrics, file/traces, googlecloud]
+    logs:
+      exporters: [otlphttp/loki, file/logs, googlecloud]

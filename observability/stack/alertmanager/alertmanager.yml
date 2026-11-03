@@ -1,0 +1,35 @@
+# Alertmanager: sends the alerts that Prometheus fires (prometheus/diet-planner.rules.yml)
+# to Slack. UI: http://localhost:9093 (also in Grafana > Alerting).
+#
+# Slack: create an "Incoming Webhook" in your Slack workspace and save its URL
+# (one line, nothing else) in observability/stack/alertmanager/secrets/slack_webhook_url
+# That folder is in .gitignore: the URL is a secret and never goes to GitHub.
+# Without the file, alerts still show in Alertmanager and Grafana; sending to Slack fails quietly.
+
+route:
+  receiver: slack
+  group_by: [alertname, service_name]
+  group_wait: 30s        # wait for related alerts, then send them together
+  group_interval: 5m
+  repeat_interval: 4h    # remind every 4 hours while it's still firing
+  routes:
+    - matchers: [severity="info"]
+      receiver: slack
+      repeat_interval: 24h
+
+receivers:
+  - name: slack
+    slack_configs:
+      - api_url_file: /etc/alertmanager/secrets/slack_webhook_url
+        send_resolved: true
+        title: '{{ if eq .Status "firing" }}:rotating_light: FIRING{{ else }}:white_check_mark: RESOLVED{{ end }}: {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'
+        text: |-
+          {{ range .Alerts }}*{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          {{ end }}Diet planner - Grafana: http://localhost:3000/d/diet-planner
+
+# A "page" alert already firing silences the warnings for the same service.
+inhibit_rules:
+  - source_matchers: [severity="page"]
+    target_matchers: [severity="warning"]
+    equal: [service_name]
