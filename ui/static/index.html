@@ -83,7 +83,10 @@
         <label>Foods you don't like
           <input name="dislikes" type="text" maxlength="120" placeholder="e.g. mushrooms, tofu" autocomplete="off">
         </label>
-        <button type="submit" class="primary" id="build-btn">Build my plan</button>
+        <div class="form-actions">
+          <button type="submit" class="primary" id="build-btn">Build my plan</button>
+          <button type="submit" class="secondary" id="week-btn">Plan my week</button>
+        </div>
         <p class="form-note" id="form-note" role="status"></p>
       </form>
       <div class="history" id="history" hidden>
@@ -95,6 +98,7 @@
 
     <!-- Plan -->
     <section class="plan" aria-live="polite">
+      <p class="print-title" id="print-title">Daily Diet Planner</p>
       <article class="facts" id="facts" aria-label="Daily targets">
         <h1 class="facts-title">Daily Targets</h1>
         <p class="facts-sub" id="facts-sub">Fill in your details to build today's plan.</p>
@@ -112,7 +116,17 @@
         <p class="facts-foot">Calculated with the Mifflin-St Jeor equation. General guidance, not medical advice.</p>
       </article>
 
+      <section class="week" id="week" aria-labelledby="week-title" hidden>
+        <h2 id="week-title">Your week</h2>
+        <div class="week-tabs" id="week-tabs" role="tablist" aria-label="Days of the week"></div>
+        <div id="week-panels"></div>
+      </section>
+
       <div class="answers" id="answers"></div>
+
+      <div class="plan-actions" id="plan-actions" hidden>
+        <button type="button" class="link" id="print-btn">Print or save as PDF</button>
+      </div>
 
       <form class="followup" id="followup-form" hidden>
         <label for="followup-input" class="visually-hidden">Ask a follow-up</label>

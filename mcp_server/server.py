@@ -25,7 +25,7 @@ from mcp.server.mcpserver import MCPServer  # noqa: E402
 
 from mcp_server.config import SERVER, TOOLS  # noqa: E402
 from mcp_server.db import ensure_database  # noqa: E402
-from mcp_server.tools import calculate_daily_calories, get_meal_options  # noqa: E402
+from mcp_server.tools import build_week_menu, calculate_daily_calories, get_meal_options  # noqa: E402
 
 # Build the meals database from the seed file on first run.
 ensure_database()
@@ -40,7 +40,7 @@ mcp = MCPServer(
 )
 
 # Register each tool with the description from the YAML file.
-for tool in (calculate_daily_calories, get_meal_options):
+for tool in (calculate_daily_calories, get_meal_options, build_week_menu):
     mcp.tool(description=TOOLS[tool.__name__]["description"])(tool)
 
 

@@ -25,7 +25,7 @@ async def _call(tool, args):
 
 async def test_server_lists_both_tools():
     names, _ = await _call("get_meal_options", {"meal_type": "lunch"})
-    assert names == {"calculate_daily_calories", "get_meal_options"}
+    assert names == {"calculate_daily_calories", "get_meal_options", "build_week_menu"}
 
 
 async def test_calorie_tool_over_mcp():

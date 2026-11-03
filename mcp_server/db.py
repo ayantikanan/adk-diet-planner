@@ -94,6 +94,7 @@ def fetch_meals(
     vegetarian: bool = False,
     avoid_allergens: tuple[str, ...] | list[str] = (),
     dislikes: tuple[str, ...] | list[str] = (),
+    limit: int = MAX_OPTIONS,
 ) -> list[dict]:
     """Returns meals of one type, lowest calories first.
 
@@ -119,7 +120,7 @@ def fetch_meals(
         query += " AND instr(lower(name || ', ' || ingredients), ?) = 0"
         params.append(word.lower())
     query += " ORDER BY calories LIMIT ?"
-    params.append(MAX_OPTIONS)
+    params.append(limit)
 
     with closing(_read_only()) as conn:  # always close, so the file is never left locked
         rows = conn.execute(query, params).fetchall()

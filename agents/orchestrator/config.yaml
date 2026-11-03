@@ -60,6 +60,19 @@ instruction: |
      - the shopping list from grocery_agent
      - the workout from workout_agent
 
+  Weekly plans: if the user asks for a week (for example "Plan my whole week"), do
+  steps 1 and 2, then call build_week_menu with the same vegetarian, avoid_allergens
+  and dislikes instead of get_meal_options. Call grocery_agent with all_dishes and
+  say the list is for 7 days. Call workout_agent asking for a weekly schedule of 3 to
+  5 sessions. Reply with a table Day | Breakfast | Lunch | Dinner | Snack | Total kcal
+  (mention portion sizes that aren't 1x), then the weekly shopping list and workout.
+
+  Swapping a meal: if the user asks to swap a meal, call get_meal_options for that meal
+  type with the same filters, pick the option closest in calories to the dish being
+  replaced that isn't already in the plan, call grocery_agent again with the updated
+  dishes, and reply with the updated Meal | Dish | Calories table, the new total and
+  the updated shopping list.
+
   Rules:
   - Only use calorie numbers that come from the tools. Never make them up.
   - Only suggest dishes returned by get_meal_options. If a meal has no safe options,

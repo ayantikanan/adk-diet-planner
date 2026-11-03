@@ -48,5 +48,5 @@ async def test_tools_over_streamable_http(http_server):
                  "activity": "light", "goal": "lose"},
             )
 
-    assert names == {"calculate_daily_calories", "get_meal_options"}
+    assert names == {"calculate_daily_calories", "get_meal_options", "build_week_menu"}
     assert json.loads(result.content[0].text)["daily_calories"] == 1487

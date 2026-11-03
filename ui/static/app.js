@@ -18,6 +18,11 @@ const STEPS = {
     done: (a) => `Found ${a.meal_type || "meal"} options${a.vegetarian ? " (vegetarian)" : ""}` +
       (a.avoid_allergens?.length ? `, without ${a.avoid_allergens.join(", ")}` : ""),
   },
+  build_week_menu: {
+    tag: "Nutrition tool", kind: "mcp",
+    running: () => "Building your 7-day menu",
+    done: (a) => `Built your 7-day menu${a.avoid_allergens?.length ? `, without ${a.avoid_allergens.join(", ")}` : ""}`,
+  },
   grocery_agent: {
     tag: "Partner agent", kind: "a2a",
     running: () => "Grocery agent is writing your shopping list",
@@ -167,6 +172,7 @@ function finishStep(resp, at) {
   li.appendChild(details);
 
   if (resp.name === "calculate_daily_calories") updateFacts(parsed);
+  if (resp.name === "build_week_menu") renderWeek(parsed);
 }
 
 // One orchestrator event -> steps and answer text. Returns the answer text, if any.
@@ -179,6 +185,7 @@ function applyEvent(event, answer, at) {
       text = part.text;
       answer.className = "answer";
       answer.innerHTML = renderMarkdown(text);
+      addSwapButtons(answer);
     }
   }
   return text;
@@ -296,6 +303,7 @@ async function openPast(sessionId) {
     openSteps.clear();
     session = { session_id: sessionId, user_id: userId };
     $("followup-form").hidden = false;
+    $("plan-actions").hidden = false;
     $("new-plan").hidden = false;
     markCurrent();
     showTraceLink();
@@ -340,7 +348,9 @@ function setBusy(value) {
   busy = value;
   $("build-btn").disabled = value;
   $("build-btn").textContent = value ? "Building your plan\u2026" : "Build my plan";
+  $("week-btn").disabled = value;
   for (const el of $("followup-form").elements) el.disabled = value;
+  for (const b of document.querySelectorAll(".swap-btn")) b.disabled = value;
 }
 
 async function send(message) {
@@ -377,6 +387,7 @@ async function send(message) {
     }
     if (!finalText) throw new Error("The planner finished without an answer. Try again in a moment.");
     $("followup-form").hidden = false;
+    $("plan-actions").hidden = false;
     $("new-plan").hidden = false;
     showTraceLink();
     refreshHistory();
@@ -407,6 +418,10 @@ function resetView() {
   $("followup-form").hidden = true;
   $("new-plan").hidden = true;
   $("trace-link").hidden = true;
+  $("plan-actions").hidden = true;
+  $("week").hidden = true;
+  $("week-tabs").innerHTML = "";
+  $("week-panels").innerHTML = "";
   for (const id of ["kcal", "protein", "carbs", "fat", "protein-pct", "carbs-pct", "fat-pct"]) $(id).textContent = "\u2014";
   $("facts-sub").textContent = "Fill in your details to build today's plan.";
 }
@@ -419,7 +434,8 @@ $("profile-form").addEventListener("submit", (e) => {
     form.reportValidity();
     return;
   }
-  send(profileMessage(form));
+  const week = e.submitter && e.submitter.id === "week-btn";
+  send(profileMessage(form) + (week ? " Plan my whole week (7 days)." : ""));
 });
 
 $("followup-form").addEventListener("submit", (e) => {
@@ -471,6 +487,97 @@ function applyExtras(form, memory) {
   }
   if (memory.dislikes) form.elements.dislikes.value = memory.dislikes.join(", ");
 }
+
+// ---------- Week view (filled from the build_week_menu tool's exact numbers) ----------
+const MEAL_LABELS = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack" };
+
+function renderWeek(week) {
+  if (!week || !Array.isArray(week.days)) return;
+  const tabs = $("week-tabs");
+  const panels = $("week-panels");
+  tabs.innerHTML = "";
+  panels.innerHTML = "";
+  week.days.forEach((day, i) => {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "week-tab";
+    tab.id = `week-tab-${i}`;
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-controls", `week-day-${i}`);
+    tab.innerHTML = "<span></span><small></small>";
+    tab.querySelector("span").textContent = day.day.slice(0, 3);
+    tab.querySelector("small").textContent = `${Number(day.total_calories).toLocaleString()} kcal`;
+    tab.addEventListener("click", () => selectDay(i));
+    tab.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      const next = (i + (e.key === "ArrowRight" ? 1 : week.days.length - 1)) % week.days.length;
+      selectDay(next);
+      $(`week-tab-${next}`).focus();
+    });
+    tabs.appendChild(tab);
+
+    const panel = document.createElement("div");
+    panel.className = "week-day";
+    panel.id = `week-day-${i}`;
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", tab.id);
+    panel.innerHTML = '<h3 class="week-day-title"></h3><table><tbody></tbody>' +
+      '<tfoot><tr><th scope="row">Total</th><td></td><td></td></tr></tfoot></table>';
+    panel.querySelector(".week-day-title").textContent =
+      day.day + (day.portion && day.portion !== 1 ? ` (portions x${day.portion})` : "");
+    const body = panel.querySelector("tbody");
+    for (const [meal, dish] of Object.entries(day.meals || {})) {
+      const row = body.insertRow();
+      const th = document.createElement("th");
+      th.scope = "row";
+      th.textContent = MEAL_LABELS[meal] || meal;
+      row.appendChild(th);
+      row.insertCell().textContent = dish.name;
+      row.insertCell().textContent = `${dish.calories} kcal`;
+    }
+    panel.querySelector("tfoot td:last-child").textContent = `${Number(day.total_calories).toLocaleString()} kcal`;
+    panels.appendChild(panel);
+  });
+  $("week").hidden = false;
+  selectDay(0);
+}
+
+function selectDay(index) {
+  document.querySelectorAll(".week-tab").forEach((tab, i) => {
+    tab.setAttribute("aria-selected", String(i === index));
+    tab.tabIndex = i === index ? 0 : -1;
+  });
+  document.querySelectorAll(".week-day").forEach((panel, i) => { panel.hidden = i !== index; });
+}
+
+// ---------- Swap a meal (adds a button to each row of a Meal | Dish table) ----------
+function addSwapButtons(answer) {
+  for (const table of answer.querySelectorAll("table")) {
+    const head = [...table.querySelectorAll("thead th")].map((th) => th.textContent.trim().toLowerCase());
+    if (head[0] !== "meal" || head[1] !== "dish") continue;
+    for (const row of table.querySelectorAll("tbody tr")) {
+      const meal = (row.cells[0]?.textContent || "").trim();
+      const dish = (row.cells[1]?.textContent || "").trim();
+      if (!/^(breakfast|lunch|dinner|snack)$/i.test(meal) || !dish) continue;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "swap-btn";
+      button.textContent = "Swap";
+      button.setAttribute("aria-label", `Swap ${meal}: ${dish}`);
+      button.disabled = busy;
+      button.addEventListener("click", () =>
+        send(`Swap my ${meal.toLowerCase()} (${dish}) for a different option with similar calories.`));
+      row.cells[1].appendChild(button);
+    }
+  }
+}
+
+// ---------- Print or save as PDF ----------
+$("print-btn").addEventListener("click", () => {
+  const today = new Date().toLocaleDateString([], { dateStyle: "long" });
+  $("print-title").textContent = `Daily Diet Planner - plan printed ${today}`;
+  window.print();
+});
 
 // ---------- Start ----------
 refreshHealth();

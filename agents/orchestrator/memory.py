@@ -56,7 +56,7 @@ def remember_profile(tool, args, tool_context, tool_response):
             return None  # the tool refused (error or guardrail): nothing to remember
         state["user:profile"] = {key: args.get(key) for key in PROFILE_KEYS}
         state["user:targets"] = result
-    elif tool.name == "get_meal_options":
+    elif tool.name in ("get_meal_options", "build_week_menu"):
         result = _result(tool_response)
         if "error" in result:
             return None

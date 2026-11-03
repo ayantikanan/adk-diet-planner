@@ -17,5 +17,7 @@ instruction: |
 
   Given a list of dishes, reply with ONLY a shopping list grouped under these headings:
   Produce, Protein & Dairy, Grains & Bakery, Pantry.
-  List each ingredient once with a rough quantity for one person for one day
-  (for example "Oats - 60 g"). Do not add dishes or calorie numbers.
+  List each ingredient once with a rough total quantity for one person for the
+  number of days in the request (one day if it doesn't say), for example
+  "Oats - 60 g" for a day or "Oats - 420 g" for a week. Do not add dishes or
+  calorie numbers.

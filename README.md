@@ -169,3 +169,14 @@ Grafana and Jaeger addresses, are in `ui/config.yaml`.
   every agent step) and the conversation can continue.
 - **Survives restarts:** conversations are stored in SQLite at `agents/orchestrator/.adk/session.db`.
 - **Forget me:** deletes the saved profile and every past conversation.
+
+---
+
+## More features
+
+| Feature | How it works |
+|---|---|
+| Allergies and dislikes | 9 allergen chips and a dislikes box. Meals carry allergens and ingredients in SQLite (`meal_allergens` table); `get_meal_options` filters them in one parameterised query. Remembered with the profile. |
+| Plan my week | MCP tool `build_week_menu`: 7 days, each close to the calorie target (portions 0.75x-1.5x), fewest repeats, same filters. Day tabs in the web app; 7-day shopping list from the grocery agent. |
+| Swap a meal | A Swap button on each row of the daily plan; the agent picks a dish with similar calories and updates the shopping list. |
+| Print or save as PDF | A print layout with just the Daily Targets label and the latest plan (all 7 days for a week). |

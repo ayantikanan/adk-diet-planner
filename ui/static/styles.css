@@ -311,3 +311,58 @@ button.link { background: none; border: 0; padding: 0; color: var(--leaf); font-
 .chips input { position: absolute; opacity: 0; pointer-events: none; }
 .chips label:has(input:checked) { background: var(--beet-soft); border-color: var(--beet); color: var(--beet); font-weight: 700; }
 .chips label:has(input:focus-visible) { outline: 3px solid var(--leaf); outline-offset: 2px; }
+
+/* ---------- Week plan, swap buttons, printing ---------- */
+.form-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.form-actions button { padding-left: 8px; padding-right: 8px; }
+
+.week { background: var(--paper); border-radius: var(--radius-lg); padding: 20px 22px; max-width: 78ch; }
+.week[hidden] { display: none; }
+.week h2 { margin: 0 0 12px; font-size: 1.05rem; font-weight: 800; font-variation-settings: "wdth" 85; }
+.week-tabs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 14px; }
+.week-tab {
+  display: grid; gap: 1px; padding: 7px 2px; cursor: pointer; text-align: center;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper);
+}
+.week-tab span { font-weight: 700; font-size: 0.9rem; }
+.week-tab small { font-size: 0.7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.week-tab[aria-selected="true"] { background: var(--leaf); border-color: var(--leaf); color: #fff; }
+.week-tab[aria-selected="true"] small { color: #fff; }
+.week-day-title { margin: 0 0 6px; font-size: 1rem; font-weight: 700; }
+.week-day table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.week-day th, .week-day td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.week-day th { font-weight: 600; width: 6.5em; }
+.week-day td:last-child { text-align: right; padding-right: 0; white-space: nowrap; }
+.week-day tfoot th, .week-day tfoot td { border-bottom: 0; border-top: 2px solid var(--text); font-weight: 800; }
+
+.swap-btn {
+  margin-left: 8px; padding: 1px 8px; cursor: pointer; vertical-align: 1px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--paper);
+  color: var(--leaf); font-size: 0.75rem; font-weight: 700;
+}
+.swap-btn:hover { border-color: var(--leaf); }
+.swap-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.plan-actions { display: flex; gap: 16px; max-width: 78ch; }
+.plan-actions[hidden] { display: none; }
+.print-title { display: none; }
+
+@media (max-width: 760px) {
+  .week { padding: 16px; }
+  .week-tab small { display: none; }
+}
+
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff; }
+  .topbar, .profile, .activity, .followup, .plan-actions, .swap-btn, .week-tabs,
+  .question, .answer.thinking, .answer.error { display: none !important; }
+  .layout { display: block; padding: 0; max-width: none; }
+  .plan { gap: 14px; }
+  .print-title { display: block; margin: 0; font-weight: 800; font-size: 1.1rem; }
+  .answer, .week { padding: 0; max-width: none; border-radius: 0; }
+  .week-day[hidden] { display: block !important; }
+  .week-day { break-inside: avoid; margin-bottom: 10px; }
+  .answer table, .facts { break-inside: avoid; }
+  #answers article.answer:not(:last-of-type) { display: none !important; }  /* print the latest plan only */
+}

@@ -61,3 +61,20 @@ tools:
     schema_file: data/schema.sql
     seed_file: data/seed_meals.json
     max_options: 12                   # most options returned per meal type
+
+  build_week_menu:
+    description: |
+      Builds a 7-day menu (Monday to Sunday): one breakfast, lunch, dinner and
+      snack per day, each day's total as close as possible to daily_calories,
+      with as few repeated dishes as possible. Portions are scaled (0.75x to 1.5x)
+      when needed to reach the target; "portion" says by how much. Use it when the
+      user wants a weekly plan. Numbers are exact; use them as they are.
+
+      Args:
+          daily_calories: The daily target from calculate_daily_calories.
+          vegetarian: If true, only vegetarian dishes.
+          avoid_allergens: The user's allergies (same names as get_meal_options).
+          dislikes: Foods the user doesn't want.
+
+      Returns days[] with meals and total_calories, and all_dishes: the list of
+      every dish used in the week (send it to grocery_agent).

@@ -71,5 +71,5 @@ async def test_mcp_server_serves_config_descriptions():
             tools = {t.name: t.description for t in (await session.list_tools()).tools}
 
     assert init.server_info.name == MCP["name"]
-    for name in ("calculate_daily_calories", "get_meal_options"):
+    for name in ("calculate_daily_calories", "get_meal_options", "build_week_menu"):
         assert tools[name] == MCP["tools"][name]["description"]
