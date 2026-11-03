@@ -216,3 +216,17 @@ Run the web app with tracing (PowerShell):
   `observability/stack/alertmanager/secrets/slack_webhook_url` (git-ignored).
 - **Safety & business row** in Grafana: guardrail blocks by rule, allergens avoided, plans by type,
   estimated Gemini cost (prices editable at the top of the dashboard) and tokens per plan.
+
+---
+
+## Google Cloud observability and business metrics
+
+- **Cloud Shell:** the web app's Grafana and Jaeger links switch to the Web Preview addresses
+  automatically. Start the stack with the Google Cloud add-on to also send traces and logs to
+  **Cloud Trace** and **Cloud Logging** (metrics stay in Prometheus):
+
+      docker compose -f observability/stack/docker-compose.yml -f observability/stack/docker-compose.gcp.yml up -d
+
+  and run the web app with `CLOUD_TRACE_PROJECT=<project-id>` to get "Open this run in Cloud Trace".
+- **Safety & business row** in Grafana: guardrail blocks by rule, allergens avoided, plans by type,
+  estimated Gemini cost (prices editable at the top of the dashboard) and tokens per plan.
