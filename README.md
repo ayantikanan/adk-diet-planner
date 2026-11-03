@@ -130,3 +130,28 @@ Open **http://localhost:8000** and pick **orchestrator**.
 | http://localhost:16686 | Jaeger (traces) |
 | http://localhost:9090 | Prometheus (raw metrics) |
 | http://localhost:8001/a2a/grocery_agent/.wel
+---
+
+## Web app (client-facing)
+
+A branded page for end users, instead of the ADK developer UI.
+
+```powershell
+# 5. Web app (port 8080) - after the orchestrator is running
+uv run python ui/app.py
+```
+
+Open **http://127.0.0.1:8080**, fill in the profile and click **Build my plan**.
+
+| Part of the page | What it shows |
+|---|---|
+| Status bar | Green or red dot for the planner, MCP tools, both A2A agents and telemetry (`/api/health`) |
+| Grafana dashboard / Jaeger traces | Links to the dashboard and the trace search |
+| Daily Targets label | Calories and macros from the `calculate_daily_calories` MCP tool |
+| Plan | Meal table, shopping list and workout written by the orchestrator |
+| Agent activity | Each MCP tool call and A2A hand-off live, with timing and output |
+| Open this run in Jaeger | The full trace of that exact request across all services |
+
+`ui/app.py` (FastAPI) serves the page and relays the orchestrator's live events
+(`/run_sse`), so the browser never talks to the agents directly. Settings, including the
+Grafana and Jaeger addresses, are in `ui/config.yaml`.
