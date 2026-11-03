@@ -237,6 +237,7 @@ async function send(message, { showQuestion }) {
     if (!finalText) throw new Error("The planner finished without an answer. Try again in a moment.");
     $("followup-form").hidden = false;
     $("new-plan").hidden = false;
+    showTraceLink();
   } catch (err) {
     answer.className = "answer error";
     answer.textContent = /fetch|network/i.test(err.message)
@@ -283,9 +284,27 @@ $("new-plan").addEventListener("click", () => {
   $("activity-empty").hidden = false;
   $("followup-form").hidden = true;
   $("new-plan").hidden = true;
+  $("trace-link").hidden = true;
   for (const id of ["kcal", "protein", "carbs", "fat", "protein-pct", "carbs-pct", "fat-pct"]) $(id).textContent = "\u2014";
   $("facts-sub").textContent = "Fill in your details to build today's plan.";
 });
 
 refreshHealth();
 setInterval(refreshHealth, 10000);
+
+// ---------- Links to Grafana and Jaeger ----------
+fetch("/api/links").then((r) => r.json()).then((links) => {
+  if (links.dashboard) $("dashboard-link").href = links.dashboard;
+  if (links.traces) $("traces-link").href = links.traces;
+}).catch(() => {});
+
+async function showTraceLink() {
+  try {
+    const r = await fetch(`/api/trace/${session.session_id}`);
+    const { url, trace_id } = await r.json();
+    if (!url) return;
+    $("trace-link").href = url;
+    $("trace-link").textContent = trace_id ? "Open this run in Jaeger" : "Open recent runs in Jaeger";
+    $("trace-link").hidden = false;
+  } catch { /* tracing is optional */ }
+}

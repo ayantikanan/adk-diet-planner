@@ -266,3 +266,14 @@ button.link { background: none; border: 0; padding: 0; color: var(--leaf); font-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Links to Grafana and Jaeger ---------- */
+.status .status-links { gap: 16px; padding-left: 14px; border-left: 1px solid var(--line); }
+.status .status-links a { color: var(--leaf); font-weight: 600; }
+.trace-link {
+  display: block; margin-top: 14px; padding: 10px 12px; text-align: center;
+  border: 1px solid var(--leaf); border-radius: var(--radius-sm);
+  color: var(--leaf); font-weight: 700; text-decoration: none;
+}
+.trace-link:hover { background: var(--leaf-soft); }
+.trace-link[hidden] { display: none; }

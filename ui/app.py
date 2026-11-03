@@ -129,6 +129,32 @@ async def health() -> dict:
     }
 
 
+LINKS = UI.get("links", {})
+
+
+@app.get("/api/links")
+async def links() -> dict:
+    """Grafana and Jaeger addresses from ui/config.yaml."""
+    return LINKS
+
+
+@app.get("/api/trace/{session_id}")
+async def latest_trace(session_id: str) -> dict:
+    """Jaeger link for the latest request in this conversation."""
+    url = f"{ADK_URL}/dev/apps/{APP_NAME}/debug/trace/session/{session_id}"
+    async with httpx.AsyncClient(timeout=5) as client:
+        try:
+            r = await client.get(url)
+            spans = r.json() if r.status_code == 200 else []
+        except (httpx.HTTPError, ValueError):
+            spans = []
+    if not spans:
+        return {"url": LINKS.get("traces")}
+    latest = max(spans, key=lambda s: s.get("start_time") or 0)
+    trace_id = f"{int(latest['trace_id']):032x}"
+    return {"trace_id": trace_id, "url": LINKS["trace"].format(trace_id=trace_id)}
+
+
 if __name__ == "__main__":
     print(f"Diet planner web app: http://{UI['host']}:{UI['port']}")
     uvicorn.run(app, host=UI["host"], port=UI["port"], log_level="warning")

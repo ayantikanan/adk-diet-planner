@@ -8,3 +8,8 @@ health_checks:
   grocery_agent: http://localhost:8001/a2a/grocery_agent/.well-known/agent-card.json
   workout_agent: http://localhost:8001/a2a/workout_agent/.well-known/agent-card.json
   telemetry_collector: 127.0.0.1:4318
+# Links in the page header (open Grafana and Jaeger in a new tab).
+links:
+  dashboard: http://localhost:3000/d/diet-planner
+  traces: http://localhost:16686/search?service=diet-orchestrator
+  trace: http://localhost:16686/trace/{trace_id}
