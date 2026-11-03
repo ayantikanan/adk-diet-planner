@@ -299,3 +299,15 @@ button.link { background: none; border: 0; padding: 0; color: var(--leaf); font-
 .history-title { font-size: 0.85rem; font-weight: 600; line-height: 1.35; }
 .history-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 0.75rem; color: var(--muted); }
 #forget-btn { font-size: 0.85rem; color: var(--beet); }
+
+/* ---------- Allergies (toggle chips) ---------- */
+.chips { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.chips legend { width: 100%; margin-bottom: 6px; padding: 0; }
+.chips label {
+  display: inline-flex; align-items: center; cursor: pointer;
+  padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--paper); color: var(--text); font-size: 0.85rem; font-weight: 500;
+}
+.chips input { position: absolute; opacity: 0; pointer-events: none; }
+.chips label:has(input:checked) { background: var(--beet-soft); border-color: var(--beet); color: var(--beet); font-weight: 700; }
+.chips label:has(input:focus-visible) { outline: 3px solid var(--leaf); outline-offset: 2px; }

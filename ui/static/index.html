@@ -68,6 +68,21 @@
           <input type="radio" id="diet-all" name="diet" value="non-vegetarian" checked><label for="diet-all">Eats everything</label>
           <input type="radio" id="diet-veg" name="diet" value="vegetarian"><label for="diet-veg">Vegetarian</label>
         </fieldset>
+        <fieldset class="chips">
+          <legend>Allergies</legend>
+          <label><input type="checkbox" name="allergy" value="dairy">Dairy</label>
+          <label><input type="checkbox" name="allergy" value="eggs">Eggs</label>
+          <label><input type="checkbox" name="allergy" value="gluten">Gluten</label>
+          <label><input type="checkbox" name="allergy" value="nuts">Tree nuts</label>
+          <label><input type="checkbox" name="allergy" value="peanuts">Peanuts</label>
+          <label><input type="checkbox" name="allergy" value="fish">Fish</label>
+          <label><input type="checkbox" name="allergy" value="shellfish">Shellfish</label>
+          <label><input type="checkbox" name="allergy" value="soy">Soy</label>
+          <label><input type="checkbox" name="allergy" value="sesame">Sesame</label>
+        </fieldset>
+        <label>Foods you don't like
+          <input name="dislikes" type="text" maxlength="120" placeholder="e.g. mushrooms, tofu" autocomplete="off">
+        </label>
         <button type="submit" class="primary" id="build-btn">Build my plan</button>
         <p class="form-note" id="form-note" role="status"></p>
       </form>

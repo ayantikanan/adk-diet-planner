@@ -47,9 +47,17 @@ tools:
       Args:
           meal_type: One of "breakfast", "lunch", "dinner", "snack".
           vegetarian: If true, only vegetarian options are returned.
+          avoid_allergens: Allergens to leave out. Any of "dairy", "eggs", "fish",
+            "shellfish", "gluten", "nuts", "peanuts", "soy", "sesame".
+            Always pass the user's allergies here.
+          dislikes: Foods the user doesn't want, e.g. ["mushroom", "tofu"]. Meals whose
+            name or ingredients contain them are left out.
+
+      Each option lists its ingredients and allergens. If "options" is empty,
+      no meal of that type is safe for these filters: tell the user.
     # Meals live in a SQLite database, built from the seed file on first run.
     # Rebuild after editing the seed: uv run python -m mcp_server.db --rebuild
     database: data/diet.db            # paths are relative to mcp_server/
     schema_file: data/schema.sql
     seed_file: data/seed_meals.json
-    max_options: 10                   # most options returned per meal type
+    max_options: 12                   # most options returned per meal type

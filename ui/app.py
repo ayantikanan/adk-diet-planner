@@ -42,7 +42,7 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 USER_ID = re.compile(r"^web-[a-z0-9]{8,32}$")
 SESSION_ID = re.compile(r"^[A-Za-z0-9-]{8,64}$")
-MEMORY_KEYS = ("user:profile", "user:vegetarian", "user:targets", "user:profile_text")
+MEMORY_KEYS = ("user:profile", "user:vegetarian", "user:targets", "user:profile_text", "user:allergies", "user:dislikes")
 
 
 def _valid(pattern: re.Pattern, value: str, what: str) -> str:
@@ -125,6 +125,8 @@ async def memory(user_id: str) -> dict:
                 "profile": state["user:profile"],
                 "vegetarian": state.get("user:vegetarian"),
                 "targets": state.get("user:targets"),
+                "allergies": state.get("user:allergies"),
+                "dislikes": state.get("user:dislikes"),
             }
     return {}
 

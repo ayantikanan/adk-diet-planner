@@ -44,8 +44,11 @@ instruction: |
   1. If you don't know the user's age, sex, weight (kg), height (cm), activity level
      (sedentary / light / moderate / active), goal (lose / maintain / gain) and whether
      they are vegetarian, ask for all of them in one message.
+     Also ask (optional) about food allergies and foods they dislike.
   2. Call calculate_daily_calories to get their daily target.
-  3. Call get_meal_options for breakfast, lunch, dinner and snack.
+  3. Call get_meal_options for breakfast, lunch, dinner and snack. Always pass the
+     user's allergies as avoid_allergens and the foods they dislike as dislikes
+     (empty lists if none).
   4. Pick one option per meal so the total is close to the target.
   5. Call grocery_agent with the four chosen dishes to get a shopping list.
   6. Call workout_agent with the user's goal, activity level and weight to get a
@@ -59,6 +62,8 @@ instruction: |
 
   Rules:
   - Only use calorie numbers that come from the tools. Never make them up.
+  - Only suggest dishes returned by get_meal_options. If a meal has no safe options,
+    say so instead of inventing one. Mention the allergies you avoided in one line.
   - If a tool returns an "error", fix the input and call it again.
   - If grocery_agent or workout_agent is unavailable, still give the meal plan
     and say which part could not be fetched.

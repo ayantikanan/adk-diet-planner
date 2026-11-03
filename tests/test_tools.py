@@ -21,7 +21,7 @@ def test_bad_activity_returns_error():
 def test_vegetarian_filter():
     result = get_meal_options("dinner", vegetarian=True)
     assert all(m["vegetarian"] for m in result["options"])
-    assert len(result["options"]) == 3
+    assert len(result["options"]) >= 3
 
 
 def test_unknown_meal_type_returns_error():

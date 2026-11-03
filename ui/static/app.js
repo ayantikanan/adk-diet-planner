@@ -15,7 +15,8 @@ const STEPS = {
   get_meal_options: {
     tag: "Nutrition tool", kind: "mcp",
     running: (a) => `Looking up ${a.meal_type || "meal"} options`,
-    done: (a) => `Found ${a.meal_type || "meal"} options${a.vegetarian ? " (vegetarian)" : ""}`,
+    done: (a) => `Found ${a.meal_type || "meal"} options${a.vegetarian ? " (vegetarian)" : ""}` +
+      (a.avoid_allergens?.length ? `, without ${a.avoid_allergens.join(", ")}` : ""),
   },
   grocery_agent: {
     tag: "Partner agent", kind: "a2a",
@@ -234,6 +235,7 @@ async function loadMemory() {
     if (memory.vegetarian !== null && memory.vegetarian !== undefined) {
       setRadio(form, "diet", memory.vegetarian ? "vegetarian" : "non-vegetarian");
     }
+    applyExtras(form, memory);
     $("memory-note").hidden = false;
   } catch { /* memory is optional */ }
 }
@@ -394,7 +396,7 @@ async function send(message) {
 function profileMessage(form) {
   const f = new FormData(form);
   return `I'm ${f.get("age")}, ${f.get("sex")}, ${f.get("weight")} kg, ${f.get("height")} cm, ` +
-    `${f.get("activity")}, want to ${f.get("goal")}, ${f.get("diet")}.`;
+    `${f.get("activity")}, want to ${f.get("goal")}, ${f.get("diet")}.` + extrasText(f);
 }
 
 function resetView() {
@@ -452,6 +454,22 @@ async function showTraceLink() {
     $("trace-link").textContent = trace_id ? "Open this run in Jaeger" : "Open recent runs in Jaeger";
     $("trace-link").hidden = false;
   } catch { /* tracing is optional */ }
+}
+
+// ---------- Allergies and dislikes ----------
+function extrasText(f) {
+  const allergies = f.getAll("allergy");
+  const dislikes = String(f.get("dislikes") || "").trim();
+  let text = allergies.length ? ` Allergies: ${allergies.join(", ")}.` : " No food allergies.";
+  if (dislikes) text += ` I don't like: ${dislikes}.`;
+  return text;
+}
+
+function applyExtras(form, memory) {
+  for (const box of form.querySelectorAll('input[name="allergy"]')) {
+    box.checked = (memory.allergies || []).includes(box.value);
+  }
+  if (memory.dislikes) form.elements.dislikes.value = memory.dislikes.join(", ");
 }
 
 // ---------- Start ----------
