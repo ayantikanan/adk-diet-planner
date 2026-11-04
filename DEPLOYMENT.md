@@ -7,8 +7,20 @@ There are two ways to run it on Cloud Run:
 
 | Layout | Cloud Run services | When to use |
 |---|---|---|
-| **A. Separate services** (target) | `diet-web-ui`, `diet-orchestrator`, `diet-mcp-server`, `diet-grocery-agent`, `diet-workout-agent` | Each part in its own container, scaled on its own. Needs the IAM setup in step 1. |
+| **A. Separate services** (target) | `diet-planner` (web UI), `diet-orchestrator`, `diet-mcp-server`, `diet-grocery-agent`, `diet-workout-agent` | Each part in its own container, scaled on its own. Needs the IAM setup in step 1. |
 | **B. All-in-one** (demo) | `diet-planner` with `SERVICE=all` | MCP server and both agents run inside the orchestrator's container on localhost. Works without extra IAM. |
+
+## Current deployment (live)
+
+| Cloud Run service | `SERVICE` | Runs |
+|---|---|---|
+| `diet-planner` | `ui` | Web UI (`ui/app.py`): https://diet-planner-34656130941.us-central1.run.app |
+| `diet-orchestrator` | `orchestrator` | Orchestrator agent + ADK developer UI |
+| `diet-mcp-server` | `mcp` | MCP tools (`/mcp`) |
+| `diet-grocery-agent` | `grocery_agent` | Grocery A2A agent |
+| `diet-workout-agent` | `workout_agent` | Workout A2A agent |
+
+All five are public. Section 3B (all-in-one) is the fallback when the separate services can't be made public.
 
 ---
 
@@ -91,7 +103,7 @@ Make all five public (needs Owner or Cloud Run Admin). The web app calls the orc
 orchestrator calls the other three, without a sign-in token, so **every** service must be public:
 
 ```bash
-for s in diet-web-ui diet-orchestrator diet-mcp-server diet-grocery-agent diet-workout-agent; do
+for s in diet-planner diet-orchestrator diet-mcp-server diet-grocery-agent diet-workout-agent; do
   gcloud run services add-iam-policy-binding $s --member=allUsers --role=roles/run.invoker
 done
 ```
@@ -107,7 +119,7 @@ gcloud run deploy diet-planner --image $IMAGE --memory 2Gi --cpu 2 --min 1 --max
 
 ## 4. Test
 
-Open https://diet-web-ui-34656130941.us-central1.run.app (the web app, fill in the profile and click
+Open https://diet-planner-34656130941.us-central1.run.app (the web app, fill in the profile and click
 **Build my plan**), the orchestrator URL (ADK developer UI) or https://diet-planner-34656130941.us-central1.run.app (B) in a browser,
 pick **orchestrator**, and ask:
 
