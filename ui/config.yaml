@@ -6,7 +6,7 @@ app_name: orchestrator                      # agents/orchestrator
 health_checks:
   mcp_server: 127.0.0.1:8002
   grocery_agent: http://localhost:8001/a2a/grocery_agent/.well-known/agent-card.json
-  workout_agent: http://localhost:8001/a2a/workout_agent/.well-known/agent-card.json
+  workout_agent: http://localhost:8003/a2a/workout_agent/.well-known/agent-card.json
   telemetry_collector: 127.0.0.1:4318
 # Links in the page header (open Grafana and Jaeger in a new tab).
 links:

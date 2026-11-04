@@ -2,7 +2,8 @@
 
 Usage (anything after the script name is passed to `adk`):
     uv run --env-file otel.env python observability/otel_launch.py web --port 8000 agents
-    uv run --env-file otel.env python observability/otel_launch.py api_server --a2a --port 8001 agents
+    uv run --env-file otel.env python observability/otel_launch.py api_server --port 8000 agents
+(the A2A sub-agents have their own launcher: serve_agent.py)
 
 It is exactly `adk <args>`, plus:
   - FastAPI (server): continues the caller's trace on incoming A2A requests and

@@ -14,7 +14,8 @@ from pathlib import Path
 TELEMETRY = Path(__file__).resolve().parent.parent / "telemetry"
 
 ORCHESTRATOR = "diet-orchestrator"
-A2A_AGENTS = "diet-a2a-agents"
+GROCERY_AGENT = "diet-grocery-agent"   # serve_agent.py, port 8001
+WORKOUT_AGENT = "diet-workout-agent"   # serve_agent.py, port 8003
 MCP_SERVER = "diet-mcp-server"
 
 
@@ -123,10 +124,10 @@ def main() -> int:
         ("MCP tool call - MCP server side (same trace)", has(MCP_SERVER, "tools/call calculate_daily_calories")),
         ("MCP meal tool - MCP server side (same trace)", has(MCP_SERVER, "tools/call get_meal_options")),
         ("A2A call to grocery_agent - orchestrator side", has(ORCHESTRATOR, "execute_tool grocery_agent")),
-        ("A2A grocery_agent - remote side (same trace)", has(A2A_AGENTS, "invoke_agent grocery_agent")),
+        ("A2A grocery_agent - remote side (same trace)", has(GROCERY_AGENT, "invoke_agent grocery_agent")),
         ("A2A call to workout_agent - orchestrator side", has(ORCHESTRATOR, "execute_tool workout_agent")),
-        ("A2A workout_agent - remote side (same trace)", has(A2A_AGENTS, "invoke_agent workout_agent")),
-        ("Remote agent's own tool (estimate_calories_burned)", has(A2A_AGENTS, "execute_tool estimate_calories_burned")),
+        ("A2A workout_agent - remote side (same trace)", has(WORKOUT_AGENT, "invoke_agent workout_agent")),
+        ("Remote agent's own tool (estimate_calories_burned)", has(WORKOUT_AGENT, "execute_tool estimate_calories_burned")),
     ]
     print("\nTrace coverage checks:")
     for label, ok in checks:

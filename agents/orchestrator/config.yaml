@@ -19,14 +19,14 @@ mcp_server:
   timeout_seconds: 30
 
 # Sub-agents, reached over A2A through their agent cards.
-# They are served by: adk api_server --a2a --port 8001 agents
+# Each runs on its own server (serve_agent.py): grocery_agent on :8001, workout_agent on :8003
 sub_agents:
   grocery_agent:
     description: "Turns a one-day meal plan into a grocery shopping list."
     url: http://localhost:8001/a2a/grocery_agent
   workout_agent:
     description: "Suggests a simple daily workout and estimates the calories it burns."
-    url: http://localhost:8001/a2a/workout_agent
+    url: http://localhost:8003/a2a/workout_agent
 
 instruction: |
   You are the orchestrator of a daily diet planning team.

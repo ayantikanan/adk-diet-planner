@@ -1,7 +1,7 @@
 {
   "name": "workout_agent",
   "description": "Suggests a simple daily workout for a fitness goal and estimates the calories it burns.",
-  "url": "http://localhost:8001/a2a/workout_agent",
+  "url": "http://localhost:8003/a2a/workout_agent",
   "version": "1.0.0",
   "capabilities": {},
   "defaultInputModes": ["text/plain"],

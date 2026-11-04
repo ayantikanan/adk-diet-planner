@@ -21,15 +21,17 @@ Get back: a meal plan with calories and macros, a shopping list, and a workout.
   |   orchestrator     | <------>
   |  agents/orchestrator
   +--------------------+
-     |  MCP (Streamable HTTP)          |  A2A (HTTP, JSON-RPC)
+     |  MCP (Streamable HTTP)          |  A2A (HTTP, JSON-RPC), one server per agent
      v                                 v
   +----------------------+     +-------------------------------+
-  | MCP server  :8002    |     | A2A server  :8001             |
-  |  calculate_daily_    |     |  grocery_agent  (Gemini)      |
-  |    calories          |     |  workout_agent  (Gemini +     |
-  |  get_meal_options    |     |    estimate_calories_burned)  |
-  |    (SQLite database) |     +-------------------------------+
-  +----------------------+
+  | MCP server  :8002    |     | grocery_agent  :8001          |
+  |  calculate_daily_    |     |  (Gemini)                     |
+  |    calories          |     +-------------------------------+
+  |  get_meal_options    |     +-------------------------------+
+  |    (SQLite database) |     | workout_agent  :8003          |
+  +----------------------+     |  (Gemini +                    |
+                               |    estimate_calories_burned)  |
+                               +-------------------------------+
 
   every service --OTLP :4318--> OTel Collector --> Tempo + Jaeger (traces)
                                                --> Prometheus      (metrics)
@@ -40,8 +42,8 @@ Get back: a meal plan with calories and macros, a shopping list, and a workout.
 | Service | Folder | Port | What it does |
 |---|---|---|---|
 | Orchestrator | `agents/orchestrator/` | 8000 | The agent users talk to. Calls the MCP tools and the two sub-agents, then writes the final plan. |
-| Grocery agent | `agents/grocery_agent/` | 8001 | A2A sub-agent: turns the chosen dishes into a shopping list. |
-| Workout agent | `agents/workout_agent/` | 8001 | A2A sub-agent: suggests a workout and calculates calories burned with its own tool. |
+| Grocery agent | `agents/grocery_agent/` | 8001 | A2A sub-agent on its own server: turns the chosen dishes into a shopping list. |
+| Workout agent | `agents/workout_agent/` | 8003 | A2A sub-agent on its own server: suggests a workout and calculates calories burned with its own tool. |
 | MCP server | `mcp_server/` | 8002 | Tool server: calorie and macro calculator, meal lookup from SQLite. |
 | Observability | `observability/stack/` | 3000, 16686, 9090 | Collector, Tempo, Jaeger, Prometheus, Loki and Grafana in Docker. |
 
@@ -84,6 +86,7 @@ diet-planner/
 |   |-- verify_traces.py          checks one trace covers MCP and A2A calls
 |   `-- stack/                    docker-compose.yml, collector, Tempo, Prometheus, Grafana
 |-- tests/                        pytest suite (no API key needed)
+|-- serve_agent.py                serves one A2A agent on its own server (own process and port)
 |-- otel.env                      OpenTelemetry settings
 `-- pyproject.toml, uv.lock       dependencies (uv)
 ```
@@ -107,7 +110,7 @@ Copy-Item agents\.env.example agents\.env     # then put your key in agents\.env
 
 ---
 
-## Run (4 terminals, from the project folder)
+## Run (5 terminals, from the project folder)
 
 ```powershell
 # 1. Observability stack (Docker Desktop must say "Engine running")
@@ -116,10 +119,13 @@ docker compose -f observability/stack/docker-compose.yml up -d
 # 2. MCP server (port 8002)
 $env:OTEL_SERVICE_NAME="diet-mcp-server"; uv run --env-file otel.env python mcp_server/server.py
 
-# 3. A2A sub-agents (port 8001)
-$env:OTEL_SERVICE_NAME="diet-a2a-agents"; uv run --env-file otel.env python observability/otel_launch.py api_server --a2a --port 8001 agents
+# 3. Grocery agent, on its own server (port 8001)
+uv run --env-file otel.env python serve_agent.py grocery_agent --port 8001
 
-# 4. Orchestrator + ADK web UI (port 8000) - start this last
+# 4. Workout agent, on its own server (port 8003)
+uv run --env-file otel.env python serve_agent.py workout_agent --port 8003
+
+# 5. Orchestrator + ADK web UI (port 8000) - start this last
 $env:OTEL_SERVICE_NAME="diet-orchestrator"; uv run --env-file otel.env python observability/otel_launch.py web --port 8000 agents
 ```
 
@@ -131,7 +137,8 @@ Open **http://localhost:8000** and pick **orchestrator**.
 | http://localhost:3000 | Grafana dashboard: **Diet Planner - Agents, MCP & LLM** |
 | http://localhost:16686 | Jaeger (traces) |
 | http://localhost:9090 | Prometheus (raw metrics) |
-| http://localhost:8001/a2a/grocery_agent/.wel
+| http://localhost:8001/a2a/grocery_agent/.well-known/agent-card.json | Grocery agent's A2A card (its own server) |
+| http://localhost:8003/a2a/workout_agent/.well-known/agent-card.json | Workout agent's A2A card (its own server) |
 ---
 
 ## Web app (client-facing)

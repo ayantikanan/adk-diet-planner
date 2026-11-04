@@ -7,7 +7,7 @@
 name: diet-tools
 instructions: "Tools for planning a daily diet: calorie targets and meal ideas."
 host: 127.0.0.1
-port: 8002                  # 8000 = orchestrator (adk web), 8001 = A2A agents
+port: 8002                  # 8000 = orchestrator (adk web), 8001/8003 = A2A agents
 
 tools:
 

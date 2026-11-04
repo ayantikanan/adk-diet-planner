@@ -12,7 +12,7 @@ CARD = Path(__file__).resolve().parent.parent / "agents" / "workout_agent" / "ag
 def test_agent_card_matches_agent():
     card = json.loads(CARD.read_text(encoding="utf-8"))
     assert card["name"] == root_agent.name == "workout_agent"
-    assert card["url"] == "http://localhost:8001/a2a/workout_agent"
+    assert card["url"] == "http://localhost:8003/a2a/workout_agent"
 
 
 def test_orchestrator_points_to_card():

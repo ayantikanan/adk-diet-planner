@@ -1,6 +1,6 @@
 """Workout agent: suggests a daily workout and the calories it burns.
 
-Served over A2A by `adk api_server --a2a --port 8001 agents` using agent.json.
+Served over A2A on its own server: `python serve_agent.py workout_agent --port 8003` (card: agent.json).
 Everything it says and uses comes from config.yaml in this folder.
 """
 
