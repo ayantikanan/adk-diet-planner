@@ -243,7 +243,7 @@ def _has_answer(event: dict) -> bool:
 
 async def _http_ok(client: httpx.AsyncClient, url: str) -> bool:
     try:
-        return (await client.get(url)).status_code < 500
+        return (await client.get(url)).status_code < 400  # 403 = private service: not reachable
     except httpx.HTTPError:
         return False
 
