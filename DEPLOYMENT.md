@@ -96,7 +96,8 @@ The client-facing web app (`ui/app.py`) as its own service, talking to the orche
 
 ```bash
 U=34656130941.us-central1.run.app
-gcloud run deploy diet-planner --image $IMAGE --memory 512Mi --min 0 --max 3 --no-session-affinity \n  --set-env-vars "^|^SERVICE=ui|ADK_URL=https://diet-orchestrator-$U|UI_LINKS=off|UI_CHECK_TELEMETRY_COLLECTOR=off|UI_CHECK_MCP_SERVER=diet-mcp-server-$U:443|UI_CHECK_GROCERY_AGENT=https://diet-grocery-agent-$U/a2a/grocery_agent/.well-known/agent-card.json|UI_CHECK_WORKOUT_AGENT=https://diet-workout-agent-$U/a2a/workout_agent/.well-known/agent-card.json"
+gcloud run deploy diet-planner --image $IMAGE --memory 512Mi --min 0 --max 3 --no-session-affinity \
+  --set-env-vars "^|^SERVICE=ui|ADK_URL=https://diet-orchestrator-$U|UI_LINKS=off|UI_CHECK_TELEMETRY_COLLECTOR=off|UI_CHECK_MCP_SERVER=diet-mcp-server-$U:443|UI_CHECK_GROCERY_AGENT=https://diet-grocery-agent-$U/a2a/grocery_agent/.well-known/agent-card.json|UI_CHECK_WORKOUT_AGENT=https://diet-workout-agent-$U/a2a/workout_agent/.well-known/agent-card.json"
 ```
 
 Make all five public (needs Owner or Cloud Run Admin). The web app calls the orchestrator, and the
