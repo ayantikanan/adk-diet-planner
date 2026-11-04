@@ -39,8 +39,15 @@ from web_telemetry import PlanTimer, untraced  # noqa: E402
 from web_telemetry import setup as setup_telemetry  # noqa: E402
 
 UI = yaml.safe_load((Path(__file__).resolve().parent / "config.yaml").read_text(encoding="utf-8"))
-CHECKS = UI["health_checks"]
-ADK_URL = UI["adk_url"].rstrip("/")
+# On Cloud Run, environment variables override config.yaml:
+#   ADK_URL                    the orchestrator's address (https://...run.app)
+#   UI_CHECK_MCP_SERVER, UI_CHECK_GROCERY_AGENT, UI_CHECK_WORKOUT_AGENT, UI_CHECK_TELEMETRY_COLLECTOR
+#     "same-as-orchestrator"  the service runs inside the orchestrator's container (SERVICE=all)
+#     "off"                    not checked: the page hides that status dot
+#     anything else            the address to check, as in config.yaml
+#   UI_LINKS=off               no Grafana / Jaeger links (they only exist on a local machine)
+CHECKS = {name: os.getenv(f"UI_CHECK_{name.upper()}", value) for name, value in UI["health_checks"].items()}
+ADK_URL = os.getenv("ADK_URL", UI["adk_url"]).rstrip("/")
 APP_NAME = UI["app_name"]
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -254,30 +261,45 @@ async def _port_open(address: str) -> bool:
 @app.get("/api/health")
 async def health() -> dict:
     """Checks each service the planner depends on."""
+    async def check(name: str, probe) -> bool | None:
+        address = CHECKS[name]
+        if address == "off":
+            return None
+        if address == "same-as-orchestrator":
+            return None  # filled in below
+        return await probe(address)
+
     with untraced():  # polled every 10 s: keep it out of the traces
-        async with httpx.AsyncClient(timeout=2) as client:
-            orchestrator, grocery, workout = await asyncio.gather(
+        async with httpx.AsyncClient(timeout=3) as client:
+            http_ok = lambda url: _http_ok(client, url)  # noqa: E731
+            orchestrator, grocery, workout, tools, telemetry = await asyncio.gather(
                 _http_ok(client, f"{ADK_URL}/list-apps"),
-                _http_ok(client, CHECKS["grocery_agent"]),
-                _http_ok(client, CHECKS["workout_agent"]),
+                check("grocery_agent", http_ok),
+                check("workout_agent", http_ok),
+                check("mcp_server", _port_open),
+                check("telemetry_collector", _port_open),
             )
-    tools, telemetry = await asyncio.gather(
-        _port_open(CHECKS["mcp_server"]),
-        _port_open(CHECKS["telemetry_collector"]),
-    )
-    return {
+    result = {
         "orchestrator": orchestrator,
         "tools": tools,
         "grocery_agent": grocery,
         "workout_agent": workout,
         "telemetry": telemetry or TO_GCP,  # Cloud Trace only mode: no collector to check
     }
+    for key, name in (("tools", "mcp_server"), ("grocery_agent", "grocery_agent"),
+                      ("workout_agent", "workout_agent"), ("telemetry", "telemetry_collector")):
+        if CHECKS[name] == "same-as-orchestrator":
+            result[key] = orchestrator
+        elif CHECKS[name] == "off" and not (key == "telemetry" and TO_GCP):
+            result[key] = None
+    return result
 
 
 # Cloud Trace only mode (OTEL_TO_GCP=true, see gcp.env): no Grafana or Jaeger, so no links to them.
 # With otel.env as well (OTEL_EXPORTER_OTLP_ENDPOINT), Grafana and Jaeger run too: keep the links.
 TO_GCP = os.getenv("OTEL_TO_GCP", "").lower() == "true"
-LINKS = {} if TO_GCP and not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT") else dict(UI.get("links", {}))
+LINKS = {} if (TO_GCP and not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")) or os.getenv("UI_LINKS") == "off" \
+    else dict(UI.get("links", {}))
 # Traces also (or only) in Cloud Trace: link to them. CLOUD_TRACE_PROJECT is the project id.
 _cloud_project = os.getenv("CLOUD_TRACE_PROJECT") or (os.getenv("GOOGLE_CLOUD_PROJECT") if TO_GCP else None)
 if _cloud_project:
@@ -316,5 +338,7 @@ async def latest_trace(session_id: str) -> dict:
 
 
 if __name__ == "__main__":
-    print(f"Diet planner web app: http://{UI['host']}:{UI['port']}")
-    uvicorn.run(app, host=UI["host"], port=UI["port"], log_level="warning")
+    host = os.getenv("UI_HOST", UI["host"])  # Cloud Run: 0.0.0.0 and its PORT
+    port = int(os.getenv("PORT", UI["port"]))
+    print(f"Diet planner web app: http://{host}:{port}", flush=True)
+    uvicorn.run(app, host=host, port=port, log_level="warning")

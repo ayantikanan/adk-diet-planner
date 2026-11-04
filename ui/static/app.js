@@ -42,7 +42,8 @@ const describe = (name) => STEPS[name] || {
 async function refreshHealth() {
   try {
     const health = await (await fetch("/api/health")).json();
-    for (const li of document.querySelectorAll("#status li")) {
+    for (const li of document.querySelectorAll("#status li[data-service]")) {
+      li.hidden = health[li.dataset.service] === null;  // not checked in this deployment
       li.dataset.up = String(Boolean(health[li.dataset.service]));
       li.title = health[li.dataset.service] ? "Running" : "Not reachable";
     }

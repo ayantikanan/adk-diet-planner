@@ -6,6 +6,7 @@ Which service is chosen with the SERVICE environment variable:
     SERVICE=workout_agent the workout A2A sub-agent, on its own server
     SERVICE=a2a           both A2A sub-agents in one server (older setup)
     SERVICE=orchestrator  the orchestrator + ADK web UI
+    SERVICE=ui            the client-facing web app (ui/app.py)
     SERVICE=all           everything in one container: MCP server (:8002), grocery
                           agent (:8001) and workout agent (:8003) in the background
                           on localhost, the orchestrator on PORT
@@ -82,11 +83,14 @@ def main() -> None:
         command = adk_command("api_server", "--a2a")
     elif SERVICE == "orchestrator":
         command = adk_command("web")
+    elif SERVICE == "ui":  # the client-facing web app (ui/app.py); ADK_URL points at the orchestrator
+        os.environ["UI_HOST"] = "0.0.0.0"
+        command = [sys.executable, str(ROOT / "ui" / "app.py")]
     elif SERVICE == "all":
         start_background_services()
         command = adk_command("web")
     else:
-        sys.exit("Set SERVICE to one of: mcp, grocery_agent, workout_agent, a2a, orchestrator, all")
+        sys.exit("Set SERVICE to one of: mcp, grocery_agent, workout_agent, a2a, orchestrator, ui, all")
 
     print(f"Starting {SERVICE} on port {PORT}: {' '.join(command)}", flush=True)
     os.chdir(ROOT)
