@@ -247,3 +247,11 @@ On Google Cloud the services can skip the local stack and send traces, logs and 
 use `gcp.env` instead of `otel.env`, and add `--otel_to_cloud` to the orchestrator and both agent (`serve_agent.py`) commands.
 The web app then links to Cloud Trace only ("Open this run in Cloud Trace"). Set `OTEL_GCP_METRICS=false`
 in `gcp.env` if your project can't take custom metrics.
+
+**Both Google Cloud and Grafana:** start the local stack without the add-on (no Google sign-in needed)
+and load both files, so every service also sends to the OTel Collector:
+
+    docker compose -f observability/stack/docker-compose.yml up -d
+    uv run --env-file gcp.env --env-file otel.env python serve_agent.py grocery_agent --port 8001 --otel_to_cloud
+
+The web app then shows the Grafana and Jaeger links as well as "Open this run in Cloud Trace".

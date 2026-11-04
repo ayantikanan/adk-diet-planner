@@ -48,19 +48,24 @@ def gcp_resource(resource: Resource) -> Resource:
 
 
 def _exporters(to_gcp: bool) -> tuple[list, list, list]:
-    """Returns (span processors, metric readers, log processors) for the backend."""
+    """Returns (span processors, metric readers, log processors) for the backend(s).
+
+    Google Cloud with OTEL_TO_GCP=true, the OTel Collector (Grafana) with
+    OTEL_EXPORTER_OTLP_ENDPOINT, or both when both are set.
+    """
+    spans, readers, logs = [], [], []
     if to_gcp:
         from google.adk.telemetry.google_cloud import get_gcp_exporters
 
         hooks = get_gcp_exporters(
             enable_cloud_tracing=True, enable_cloud_metrics=gcp_metrics_enabled(), enable_cloud_logging=True
         )
-        return hooks.span_processors, hooks.metric_readers, hooks.log_record_processors
-    return (
-        [BatchSpanProcessor(OTLPSpanExporter())],
-        [PeriodicExportingMetricReader(OTLPMetricExporter())],
-        [BatchLogRecordProcessor(OTLPLogExporter())],
-    )
+        spans, readers, logs = list(hooks.span_processors), list(hooks.metric_readers), list(hooks.log_record_processors)
+    if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
+        spans.append(BatchSpanProcessor(OTLPSpanExporter()))
+        readers.append(PeriodicExportingMetricReader(OTLPMetricExporter()))
+        logs.append(BatchLogRecordProcessor(OTLPLogExporter()))
+    return spans, readers, logs
 
 
 def setup_telemetry() -> bool:

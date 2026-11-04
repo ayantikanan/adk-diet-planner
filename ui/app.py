@@ -275,8 +275,9 @@ async def health() -> dict:
 
 
 # Cloud Trace only mode (OTEL_TO_GCP=true, see gcp.env): no Grafana or Jaeger, so no links to them.
+# With otel.env as well (OTEL_EXPORTER_OTLP_ENDPOINT), Grafana and Jaeger run too: keep the links.
 TO_GCP = os.getenv("OTEL_TO_GCP", "").lower() == "true"
-LINKS = {} if TO_GCP else dict(UI.get("links", {}))
+LINKS = {} if TO_GCP and not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT") else dict(UI.get("links", {}))
 # Traces also (or only) in Cloud Trace: link to them. CLOUD_TRACE_PROJECT is the project id.
 _cloud_project = os.getenv("CLOUD_TRACE_PROJECT") or (os.getenv("GOOGLE_CLOUD_PROJECT") if TO_GCP else None)
 if _cloud_project:

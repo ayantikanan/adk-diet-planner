@@ -69,6 +69,7 @@ def test_cloud_trace_only_mode(monkeypatch):
     monkeypatch.setenv("OTEL_TO_GCP", "true")
     monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "demo-project")
     monkeypatch.delenv("CLOUD_TRACE_PROJECT", raising=False)
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
     monkeypatch.setattr("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor.instrument_app", lambda *a, **k: None)
     monkeypatch.setattr("web_telemetry.setup", lambda app: False)
     spec_gcp = importlib.util.spec_from_file_location("ui_app_gcp_only", APP_PATH)
@@ -78,3 +79,18 @@ def test_cloud_trace_only_mode(monkeypatch):
     links = gcp_client.get("/api/links").json()
     assert set(links) == {"cloud_trace", "cloud_trace_run"}
     assert gcp_client.get("/api/health").json()["telemetry"] is True
+
+
+def test_cloud_trace_and_grafana_mode(monkeypatch):
+    """gcp.env + otel.env: Cloud Trace links and the Grafana / Jaeger links."""
+    monkeypatch.setenv("OTEL_TO_GCP", "true")
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318")
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "demo-project")
+    monkeypatch.delenv("CLOUD_TRACE_PROJECT", raising=False)
+    monkeypatch.setattr("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor.instrument_app", lambda *a, **k: None)
+    monkeypatch.setattr("web_telemetry.setup", lambda app: False)
+    spec_both = importlib.util.spec_from_file_location("ui_app_gcp_and_grafana", APP_PATH)
+    app_both = importlib.util.module_from_spec(spec_both)
+    spec_both.loader.exec_module(app_both)
+    links = TestClient(app_both.app).get("/api/links").json()
+    assert {"dashboard", "traces", "cloud_trace", "cloud_trace_run"} <= set(links)

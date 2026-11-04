@@ -54,3 +54,26 @@ async def test_mcp_tool_metrics_are_recorded():
     assert point.value == 1
     assert dict(point.attributes) == {"tool.name": "calculate_daily_calories", "status": "ok"}
     assert "diet_mcp.tool.duration" in metrics
+
+
+def test_mcp_exports_to_google_cloud_and_grafana(monkeypatch):
+    """gcp.env + otel.env: the MCP server sends to Google Cloud and to the OTel Collector."""
+    from google.adk.telemetry import google_cloud
+    from google.adk.telemetry.setup import OTelHooks
+
+    from mcp_server import telemetry
+
+    gcp_span, gcp_reader, gcp_log = object(), object(), object()
+    monkeypatch.setattr(google_cloud, "get_gcp_exporters", lambda **kw: OTelHooks(
+        span_processors=[gcp_span], metric_readers=[gcp_reader], log_record_processors=[gcp_log]))
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+    spans, readers, logs = telemetry._exporters(to_gcp=True)
+    assert (spans, readers, logs) == ([gcp_span], [gcp_reader], [gcp_log])  # Cloud Trace only
+
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318")
+    spans, readers, logs = telemetry._exporters(to_gcp=True)
+    assert spans[0] is gcp_span and len(spans) == 2
+    assert readers[0] is gcp_reader and len(readers) == 2
+    assert logs[0] is gcp_log and len(logs) == 2
+    for reader in readers[1:]:
+        reader.shutdown()

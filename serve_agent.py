@@ -52,7 +52,12 @@ def setup_telemetry(to_gcp: bool) -> None:
             enable_cloud_logging=True,
             enable_cloud_metrics=os.getenv("OTEL_GCP_METRICS", "true").lower() == "true",
         )
-        readers = hooks.metric_readers
+        readers = list(hooks.metric_readers)
+        if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):  # Grafana too (gcp.env + otel.env)
+            from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+            from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+
+            readers.append(PeriodicExportingMetricReader(OTLPMetricExporter()))
     else:
         from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
         from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader

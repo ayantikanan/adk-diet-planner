@@ -38,10 +38,14 @@ TO_GCP = "--otel_to_cloud" in sys.argv
 def _metric_readers() -> list:
     if TO_GCP:
         if os.getenv("OTEL_GCP_METRICS", "true").lower() != "true":
-            return []  # metrics off on Google Cloud (OTEL_GCP_METRICS=false)
+            # metrics off on Google Cloud (OTEL_GCP_METRICS=false); still to Grafana if it's there
+            return [PeriodicExportingMetricReader(OTLPMetricExporter())] if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT") else []
         from google.adk.telemetry.google_cloud import get_gcp_exporters
 
-        return get_gcp_exporters(enable_cloud_metrics=True).metric_readers
+        readers = get_gcp_exporters(enable_cloud_metrics=True).metric_readers
+        if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):  # Grafana too (gcp.env + otel.env)
+            readers.append(PeriodicExportingMetricReader(OTLPMetricExporter()))
+        return readers
     return [PeriodicExportingMetricReader(OTLPMetricExporter())]
 
 

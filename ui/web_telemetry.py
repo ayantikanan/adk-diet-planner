@@ -10,8 +10,8 @@ It also measures what the user experiences, for the SLOs in Grafana:
 Kinds: day, week, swap, followup. Outcomes: success, error.
 
 Exports to the local OTel Collector when OTEL_EXPORTER_OTLP_ENDPOINT is set
-(otel.env), or straight to Cloud Trace, Cloud Logging and Cloud Monitoring when
-OTEL_TO_GCP=true (gcp.env). Otherwise nothing happens.
+(otel.env), straight to Cloud Trace, Cloud Logging and Cloud Monitoring when
+OTEL_TO_GCP=true (gcp.env), or to both with both files. Otherwise nothing happens.
 """
 
 import logging
@@ -75,11 +75,13 @@ def setup(app) -> bool:
             enable_cloud_metrics=os.getenv("OTEL_GCP_METRICS", "true").lower() == "true",
         )
         span_processors, metric_readers, log_processors = (
-            hooks.span_processors, hooks.metric_readers, hooks.log_record_processors)
+            list(hooks.span_processors), list(hooks.metric_readers), list(hooks.log_record_processors))
     else:
-        span_processors = [BatchSpanProcessor(OTLPSpanExporter())]
-        metric_readers = [PeriodicExportingMetricReader(OTLPMetricExporter())]
-        log_processors = [BatchLogRecordProcessor(OTLPLogExporter())]
+        span_processors, metric_readers, log_processors = [], [], []
+    if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):  # the OTel Collector (Grafana); with gcp.env too: both
+        span_processors.append(BatchSpanProcessor(OTLPSpanExporter()))
+        metric_readers.append(PeriodicExportingMetricReader(OTLPMetricExporter()))
+        log_processors.append(BatchLogRecordProcessor(OTLPLogExporter()))
 
     tracer_provider = TracerProvider(resource=resource)
     for processor in span_processors:
