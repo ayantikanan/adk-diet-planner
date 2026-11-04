@@ -467,6 +467,8 @@ function publicUrl(url) {
 fetch("/api/links").then((r) => r.json()).then((links) => {
   if (links.dashboard) $("dashboard-link").href = publicUrl(links.dashboard);
   if (links.traces) $("traces-link").href = publicUrl(links.traces);
+  $("dashboard-link").hidden = !links.dashboard;  // Cloud Trace only mode: no Grafana or Jaeger
+  $("traces-link").hidden = !links.traces;
   if (links.cloud_trace) {
     $("cloud-trace-link").href = links.cloud_trace;
     $("cloud-trace-link").hidden = false;

@@ -237,3 +237,13 @@ Run the web app with tracing (PowerShell):
   and run the web app with `CLOUD_TRACE_PROJECT=<project-id>` to get "Open this run in Cloud Trace".
 - **Safety & business row** in Grafana: guardrail blocks by rule, allergens avoided, plans by type,
   estimated Gemini cost (prices editable at the top of the dashboard) and tokens per plan.
+
+---
+
+## Cloud Trace only (Google Cloud, no Docker)
+
+On Google Cloud the services can skip the local stack and send traces, logs and metrics straight to
+**Cloud Trace**, **Cloud Logging** and **Cloud Monitoring** (through `telemetry.googleapis.com`):
+use `gcp.env` instead of `otel.env`, and add `--otel_to_cloud` to the orchestrator and both agent (`serve_agent.py`) commands.
+The web app then links to Cloud Trace only ("Open this run in Cloud Trace"). Set `OTEL_GCP_METRICS=false`
+in `gcp.env` if your project can't take custom metrics.

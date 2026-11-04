@@ -62,3 +62,19 @@ def test_cloud_trace_links_on_google_cloud(monkeypatch):
     assert links["cloud_trace"].endswith("project=demo-project")
     assert links["cloud_trace_run"].endswith("&tid={trace_id}")
     assert "cloud_trace" not in client.get("/api/links").json()  # not on the laptop
+
+
+def test_cloud_trace_only_mode(monkeypatch):
+    """OTEL_TO_GCP=true (gcp.env): links go to Cloud Trace only, telemetry counts as up."""
+    monkeypatch.setenv("OTEL_TO_GCP", "true")
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "demo-project")
+    monkeypatch.delenv("CLOUD_TRACE_PROJECT", raising=False)
+    monkeypatch.setattr("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor.instrument_app", lambda *a, **k: None)
+    monkeypatch.setattr("web_telemetry.setup", lambda app: False)
+    spec_gcp = importlib.util.spec_from_file_location("ui_app_gcp_only", APP_PATH)
+    app_gcp = importlib.util.module_from_spec(spec_gcp)
+    spec_gcp.loader.exec_module(app_gcp)
+    gcp_client = TestClient(app_gcp.app)
+    links = gcp_client.get("/api/links").json()
+    assert set(links) == {"cloud_trace", "cloud_trace_run"}
+    assert gcp_client.get("/api/health").json()["telemetry"] is True

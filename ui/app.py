@@ -270,14 +270,17 @@ async def health() -> dict:
         "tools": tools,
         "grocery_agent": grocery,
         "workout_agent": workout,
-        "telemetry": telemetry,
+        "telemetry": telemetry or TO_GCP,  # Cloud Trace only mode: no collector to check
     }
 
 
-LINKS = dict(UI.get("links", {}))
-# On Google Cloud (Cloud Shell), traces also go to Cloud Trace: set CLOUD_TRACE_PROJECT to the project id.
-if os.getenv("CLOUD_TRACE_PROJECT"):
-    _console = f"https://console.cloud.google.com/traces/list?project={os.environ['CLOUD_TRACE_PROJECT']}"
+# Cloud Trace only mode (OTEL_TO_GCP=true, see gcp.env): no Grafana or Jaeger, so no links to them.
+TO_GCP = os.getenv("OTEL_TO_GCP", "").lower() == "true"
+LINKS = {} if TO_GCP else dict(UI.get("links", {}))
+# Traces also (or only) in Cloud Trace: link to them. CLOUD_TRACE_PROJECT is the project id.
+_cloud_project = os.getenv("CLOUD_TRACE_PROJECT") or (os.getenv("GOOGLE_CLOUD_PROJECT") if TO_GCP else None)
+if _cloud_project:
+    _console = f"https://console.cloud.google.com/traces/list?project={_cloud_project}"
     LINKS["cloud_trace"] = _console
     LINKS["cloud_trace_run"] = _console + "&tid={trace_id}"
 
@@ -303,7 +306,9 @@ async def latest_trace(session_id: str) -> dict:
         return {"url": LINKS.get("traces")}
     latest = max(spans, key=lambda s: s.get("start_time") or 0)
     trace_id = f"{int(latest['trace_id']):032x}"
-    result = {"trace_id": trace_id, "url": LINKS["trace"].format(trace_id=trace_id)}
+    result = {"trace_id": trace_id}
+    if "trace" in LINKS:
+        result["url"] = LINKS["trace"].format(trace_id=trace_id)
     if "cloud_trace_run" in LINKS:
         result["cloud_url"] = LINKS["cloud_trace_run"].format(trace_id=trace_id)
     return result

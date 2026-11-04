@@ -33,13 +33,27 @@ DURATION_BUCKETS_S = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10,
                       20, 30, 45, 60, 90, 120, 180, 300)
 
 
+def gcp_metrics_enabled() -> bool:
+    """On Google Cloud, metrics go to Cloud Monitoring unless OTEL_GCP_METRICS=false."""
+    return os.getenv("OTEL_GCP_METRICS", "true").lower() == "true"
+
+
+def gcp_resource(resource: Resource) -> Resource:
+    """Adds the Google Cloud project (gcp.project_id), which Cloud Trace and Logging need."""
+    import google.auth
+    from google.adk.telemetry.google_cloud import get_gcp_resource
+
+    _, project_id = google.auth.default()
+    return get_gcp_resource(project_id).merge(resource)
+
+
 def _exporters(to_gcp: bool) -> tuple[list, list, list]:
     """Returns (span processors, metric readers, log processors) for the backend."""
     if to_gcp:
         from google.adk.telemetry.google_cloud import get_gcp_exporters
 
         hooks = get_gcp_exporters(
-            enable_cloud_tracing=True, enable_cloud_metrics=True, enable_cloud_logging=True
+            enable_cloud_tracing=True, enable_cloud_metrics=gcp_metrics_enabled(), enable_cloud_logging=True
         )
         return hooks.span_processors, hooks.metric_readers, hooks.log_record_processors
     return (
@@ -58,6 +72,8 @@ def setup_telemetry() -> bool:
     resource = Resource.create(
         {"service.name": os.getenv("OTEL_SERVICE_NAME", "diet-mcp-server")}
     )
+    if to_gcp:
+        resource = gcp_resource(resource)
     span_processors, metric_readers, log_processors = _exporters(to_gcp)
 
     tracer_provider = TracerProvider(resource=resource)

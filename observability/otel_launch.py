@@ -37,16 +37,29 @@ TO_GCP = "--otel_to_cloud" in sys.argv
 
 def _metric_readers() -> list:
     if TO_GCP:
+        if os.getenv("OTEL_GCP_METRICS", "true").lower() != "true":
+            return []  # metrics off on Google Cloud (OTEL_GCP_METRICS=false)
         from google.adk.telemetry.google_cloud import get_gcp_exporters
 
         return get_gcp_exporters(enable_cloud_metrics=True).metric_readers
     return [PeriodicExportingMetricReader(OTLPMetricExporter())]
 
 
+def _resource() -> Resource:
+    resource = Resource.create()  # service.name comes from OTEL_SERVICE_NAME
+    if TO_GCP:  # Cloud Monitoring needs the project (gcp.project_id) on the resource
+        import google.auth
+        from google.adk.telemetry.google_cloud import get_gcp_resource
+
+        _, project_id = google.auth.default()
+        resource = get_gcp_resource(project_id).merge(resource)
+    return resource
+
+
 if TO_GCP or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
     metrics.set_meter_provider(
         MeterProvider(
-            resource=Resource.create(),  # service.name comes from OTEL_SERVICE_NAME
+            resource=_resource(),
             metric_readers=_metric_readers(),
             views=[
                 View(instrument_name=name, aggregation=ExplicitBucketHistogramAggregation(DURATION_BUCKETS_S))

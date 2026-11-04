@@ -9,7 +9,9 @@ It also measures what the user experiences, for the SLOs in Grafana:
   diet.plan.duration  histogram  seconds from click to finished answer, by kind
 Kinds: day, week, swap, followup. Outcomes: success, error.
 
-Nothing happens unless OTEL_EXPORTER_OTLP_ENDPOINT is set (see otel.env).
+Exports to the local OTel Collector when OTEL_EXPORTER_OTLP_ENDPOINT is set
+(otel.env), or straight to Cloud Trace, Cloud Logging and Cloud Monitoring when
+OTEL_TO_GCP=true (gcp.env). Otherwise nothing happens.
 """
 
 import logging
@@ -42,7 +44,8 @@ plan_duration = meter.create_histogram(
 
 def setup(app) -> bool:
     """Switches on export and instruments the FastAPI app. Returns True if enabled."""
-    if not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
+    to_gcp = os.getenv("OTEL_TO_GCP", "").lower() == "true"
+    if not (to_gcp or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")):
         return False
     from opentelemetry import _logs
     from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
@@ -60,15 +63,33 @@ def setup(app) -> bool:
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
     resource = Resource.create({"service.name": os.getenv("OTEL_SERVICE_NAME", "diet-web-app")})
+    if to_gcp:  # straight to Google Cloud, using ADK's exporters (telemetry.googleapis.com)
+        import google.auth
+        from google.adk.telemetry.google_cloud import get_gcp_exporters, get_gcp_resource
+
+        _, project_id = google.auth.default()
+        resource = get_gcp_resource(project_id).merge(resource)
+        hooks = get_gcp_exporters(
+            enable_cloud_tracing=True,
+            enable_cloud_logging=True,
+            enable_cloud_metrics=os.getenv("OTEL_GCP_METRICS", "true").lower() == "true",
+        )
+        span_processors, metric_readers, log_processors = (
+            hooks.span_processors, hooks.metric_readers, hooks.log_record_processors)
+    else:
+        span_processors = [BatchSpanProcessor(OTLPSpanExporter())]
+        metric_readers = [PeriodicExportingMetricReader(OTLPMetricExporter())]
+        log_processors = [BatchLogRecordProcessor(OTLPLogExporter())]
 
     tracer_provider = TracerProvider(resource=resource)
-    tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+    for processor in span_processors:
+        tracer_provider.add_span_processor(processor)
     trace.set_tracer_provider(tracer_provider)
 
     metrics.set_meter_provider(
         MeterProvider(
             resource=resource,
-            metric_readers=[PeriodicExportingMetricReader(OTLPMetricExporter())],
+            metric_readers=metric_readers,
             views=[
                 View(instrument_name=name, aggregation=ExplicitBucketHistogramAggregation(DURATION_BUCKETS_S))
                 for name in ("http.server.request.duration", "http.client.request.duration", "diet.plan.duration")
@@ -77,7 +98,8 @@ def setup(app) -> bool:
     )
 
     logger_provider = LoggerProvider(resource=resource)
-    logger_provider.add_log_record_processor(BatchLogRecordProcessor(OTLPLogExporter()))
+    for processor in log_processors:
+        logger_provider.add_log_record_processor(processor)
     _logs.set_logger_provider(logger_provider)
     logger.addHandler(LoggingHandler(level=logging.INFO, logger_provider=logger_provider))
     logger.setLevel(logging.INFO)
