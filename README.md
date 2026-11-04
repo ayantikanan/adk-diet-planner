@@ -255,3 +255,63 @@ and load both files, so every service also sends to the OTel Collector:
     uv run --env-file gcp.env --env-file otel.env python serve_agent.py grocery_agent --port 8001 --otel_to_cloud
 
 The web app then shows the Grafana and Jaeger links as well as "Open this run in Cloud Trace".
+
+## Deploy to Cloud Run (GitHub Actions)
+
+[`.github/workflows/deployment-cicd.yaml`](.github/workflows/deployment-cicd.yaml) runs the tests, builds one
+image and deploys it as **four separate public Cloud Run services**, each in its own container:
+
+| Cloud Run service | `SERVICE` | What it is |
+|---|---|---|
+| `diet-orchestrator` | `orchestrator` | ADK web UI, open this URL in a browser |
+| `diet-mcp-server` | `mcp` | MCP tool server (`/mcp`) |
+| `diet-grocery-agent` | `grocery_agent` | A2A sub-agent (`/a2a/grocery_agent`) |
+| `diet-workout-agent` | `workout_agent` | A2A sub-agent (`/a2a/workout_agent`) |
+
+It runs on every push to `main` that changes the app, or by hand from the Actions tab ("Run workflow").
+The orchestrator finds the others through `MCP_SERVER_URL`, `GROCERY_AGENT_URL` and `WORKOUT_AGENT_URL`;
+the Gemini key comes from the `GOOGLE_API_KEY` secret in Secret Manager, and telemetry goes to Cloud Trace,
+Logging and Monitoring (same settings as `gcp.env`).
+
+**One-time setup** (in Cloud Shell or any terminal signed in as a project owner):
+
+```bash
+P=eternal-nucleus-513516-a2; N=34656130941; REPO=ayantikanan/adk-diet-planner
+
+# 1. Runtime account (the services run as it): read the Gemini key, write telemetry
+RUN_SA=34656130941-compute@developer.gserviceaccount.com
+for R in roles/cloudtrace.agent roles/logging.logWriter roles/monitoring.metricWriter roles/telemetry.tracesWriter; do
+  gcloud projects add-iam-policy-binding $P --member=serviceAccount:$RUN_SA --role=$R --condition=None
+done
+gcloud secrets add-iam-policy-binding GOOGLE_API_KEY --project $P \
+  --member=serviceAccount:$RUN_SA --role=roles/secretmanager.secretAccessor
+
+# 2. Deployer account (GitHub Actions signs in as it): push images, deploy Cloud Run
+gcloud iam service-accounts create github-deployer --project $P
+DEPLOY_SA=github-deployer@$P.iam.gserviceaccount.com
+for R in roles/run.admin roles/artifactregistry.writer; do
+  gcloud projects add-iam-policy-binding $P --member=serviceAccount:$DEPLOY_SA --role=$R --condition=None
+done
+gcloud iam service-accounts add-iam-policy-binding $RUN_SA --project $P \
+  --member=serviceAccount:$DEPLOY_SA --role=roles/iam.serviceAccountUser
+
+# 3. Workload Identity Federation: only this GitHub repo may sign in as the deployer (no key file)
+gcloud iam workload-identity-pools create github --project $P --location=global
+gcloud iam workload-identity-pools providers create-oidc github --project $P --location=global \
+  --workload-identity-pool=github --issuer-uri=https://token.actions.githubusercontent.com \
+  --attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository \
+  --attribute-condition="assertion.repository=='$REPO'"
+gcloud iam service-accounts add-iam-policy-binding $DEPLOY_SA --project $P \
+  --role=roles/iam.workloadIdentityUser \
+  --member=principalSet://iam.googleapis.com/projects/$N/locations/global/workloadIdentityPools/github/attribute.repository/$REPO
+```
+
+Then add two **repository secrets** in GitHub (Settings > Secrets and variables > Actions):
+
+| Secret | Value |
+|---|---|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/34656130941/locations/global/workloadIdentityPools/github/providers/github` |
+| `GCP_DEPLOYER_SERVICE_ACCOUNT` | `github-deployer@eternal-nucleus-513516-a2.iam.gserviceaccount.com` |
+
+After a run, the job summary lists the four URLs. Cloud Run sessions are in memory, so the orchestrator
+runs as one instance with session affinity; a restart starts new chats.

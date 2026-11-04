@@ -1,0 +1,165 @@
+# CD: tests, then builds one image and deploys it to Cloud Run as 4 separate public services:
+#   diet-mcp-server     MCP tool server                    (SERVICE=mcp)
+#   diet-grocery-agent  grocery A2A sub-agent              (SERVICE=grocery_agent)
+#   diet-workout-agent  workout A2A sub-agent              (SERVICE=workout_agent)
+#   diet-orchestrator   orchestrator + ADK web UI (public) (SERVICE=orchestrator)
+# Each runs in its own container; the orchestrator reaches the others through their https URLs.
+# One-time Google Cloud setup (service accounts, Workload Identity, repo secrets): see README,
+# "Deploy to Cloud Run (GitHub Actions)".
+name: Deploy to Cloud Run
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - "agents/**"
+      - "mcp_server/**"
+      - "observability/otel_launch.py"
+      - "serve_agent.py"
+      - "deploy/**"
+      - ".github/workflows/deployment-cicd.yaml"
+
+permissions:
+  contents: read
+  id-token: write   # for Workload Identity Federation (no service account key in GitHub)
+
+concurrency:
+  group: diet-planner-cloudrun
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: eternal-nucleus-513516-a2
+  PROJECT_NUMBER: "34656130941"
+  REGION: us-central1
+  AR_REPOSITORY: diet-planner
+  IMAGE_NAME: app
+  # The services run as this account: it reads the Gemini key and writes traces, logs and metrics.
+  RUNTIME_SERVICE_ACCOUNT: 34656130941-compute@developer.gserviceaccount.com
+  # Secret Manager secret holding the Gemini API key.
+  GOOGLE_API_KEY_SECRET: GOOGLE_API_KEY
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.32"
+          enable-cache: true
+
+      - name: Run tests
+        run: |
+          uv sync --frozen
+          uv run pytest -q
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker authentication
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push image
+        shell: bash
+        run: |
+          image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/${IMAGE_NAME}"
+          docker build --tag "${image}:${GITHUB_SHA}" --tag "${image}:latest" .
+          docker push --all-tags "${image}"
+
+      - name: Deploy the 4 services
+        shell: bash
+        run: |
+          image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}"
+          # Cloud Run's deterministic URL, so a service's address is known before it is first deployed.
+          url() { echo "https://$1-${PROJECT_NUMBER}.${REGION}.run.app"; }
+
+          # Same settings as gcp.env ("Cloud Trace only" mode). "|" separates the env vars because
+          # OTEL_PYTHON_FASTAPI_EXCLUDED_URLS is itself a comma-separated list.
+          common="GOOGLE_CLOUD_PROJECT=${PROJECT_ID}|GOOGLE_GENAI_USE_VERTEXAI=FALSE|OTEL_TO_GCP=true"
+          common+="|GCP_DEFAULT_LOG_NAME=diet-planner|OTEL_GCP_METRICS=true|OTEL_INSTRUMENTATION_A2A_SDK_ENABLED=false"
+          common+="|OTEL_PYTHON_FASTAPI_EXCLUDED_URLS=dev-ui,list-apps,favicon,builder,debug,apps/.*/users/.*/sessions$"
+          common+="|OTEL_SEMCONV_STABILITY_OPT_IN=http|OTEL_RESOURCE_ATTRIBUTES=service.namespace=diet-planner"
+          common+="|OTEL_BSP_SCHEDULE_DELAY=1000|OTEL_BLRP_SCHEDULE_DELAY=1000"
+          key="GOOGLE_API_KEY=${GOOGLE_API_KEY_SECRET}:latest"
+
+          # deploy <service> <max instances> <extra env vars> [extra flags...]
+          # --no-invoker-iam-check makes the service public (anyone can call it, no sign-in)
+          # without an allUsers IAM binding. --set-env-vars replaces every variable on each deploy,
+          # so settings made by hand in the console are lost: change them here instead.
+          deploy() {
+            local name=$1 max=$2 env_vars=$3; shift 3
+            gcloud run deploy "${name}" \
+              --project="${PROJECT_ID}" \
+              --region="${REGION}" \
+              --platform=managed \
+              --image="${image}" \
+              --service-account="${RUNTIME_SERVICE_ACCOUNT}" \
+              --port=8080 \
+              --memory=1Gi \
+              --cpu=1 \
+              --min=0 \
+              --max="${max}" \
+              --timeout=300 \
+              --cpu-boost \
+              --ingress=all \
+              --no-invoker-iam-check \
+              --set-env-vars="^|^${common}|OTEL_SERVICE_NAME=${name}|${env_vars}" \
+              "$@" \
+              --quiet
+          }
+
+          # 1. MCP server: stateless, needs no API key.
+          deploy diet-mcp-server 3 "SERVICE=mcp"
+
+          # 2. A2A sub-agents: their agent cards must advertise their public URL.
+          deploy diet-grocery-agent 2 "SERVICE=grocery_agent|A2A_PUBLIC_URL=$(url diet-grocery-agent)" \
+            --set-secrets="${key}"
+          deploy diet-workout-agent 2 "SERVICE=workout_agent|A2A_PUBLIC_URL=$(url diet-workout-agent)" \
+            --set-secrets="${key}"
+
+          # 3. Orchestrator + web UI. Sessions are kept in memory (memory://), so one instance with
+          #    session affinity keeps every chat on the same machine.
+          orchestrator_env="SERVICE=orchestrator|MCP_SERVER_URL=$(url diet-mcp-server)/mcp"
+          orchestrator_env+="|GROCERY_AGENT_URL=$(url diet-grocery-agent)/a2a/grocery_agent"
+          orchestrator_env+="|WORKOUT_AGENT_URL=$(url diet-workout-agent)/a2a/workout_agent"
+          deploy diet-orchestrator 1 "${orchestrator_env}" --set-secrets="${key}" --session-affinity
+
+      - name: Show service URLs
+        shell: bash
+        run: |
+          {
+            echo "### Deployed diet-planner (${GITHUB_SHA::7})"
+            for name in diet-orchestrator diet-mcp-server diet-grocery-agent diet-workout-agent; do
+              url="$(gcloud run services describe "${name}" --project="${PROJECT_ID}" --region="${REGION}" --format='value(status.url)')"
+              echo "- **${name}**: ${url}"
+            done
+            echo ""
+            echo "Open the orchestrator URL for the ADK web UI."
+          } >> "$GITHUB_STEP_SUMMARY"
