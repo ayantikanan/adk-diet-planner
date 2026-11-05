@@ -12,7 +12,9 @@ P=eternal-nucleus-513516-a2; R=us-central1
 BACKENDS=(diet-mcp-server diet-grocery-agent diet-workout-agent diet-orchestrator)
 OTEL_VARS=OTEL_EXPORTER_OTLP_ENDPOINT,OTEL_EXPORTER_OTLP_HEADERS,OTEL_EXPORTER_OTLP_PROTOCOL,OTEL_METRIC_EXPORT_INTERVAL,OTEL_BSP_SCHEDULE_DELAY,OTEL_BLRP_SCHEDULE_DELAY,OTEL_SEMCONV_STABILITY_OPT_IN,OTEL_RESOURCE_ATTRIBUTES,OTEL_INSTRUMENTATION_A2A_SDK_ENABLED,OTEL_PYTHON_FASTAPI_EXCLUDED_URLS
 
-update() { gcloud run services update "$1" --project $P --region $R --quiet "${@:2}" >/dev/null && echo "updated $1"; }
+# --no-cpu-throttling: Cloud Run otherwise pauses the CPU after each response, so spans wait
+# in the exporter until the next request.
+update() { gcloud run services update "$1" --project $P --region $R --quiet --no-cpu-throttling "${@:2}" >/dev/null && echo "updated $1"; }
 
 if [[ "${1:-}" == "--off" ]]; then
   for s in "${BACKENDS[@]}"; do update $s --remove-env-vars "$OTEL_VARS" & done
