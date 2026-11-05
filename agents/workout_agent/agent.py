@@ -8,27 +8,22 @@ from pathlib import Path
 
 import yaml
 from google.adk.agents import LlmAgent
-from google.adk.models import Gemini
-from google.genai import types
 
 from .telemetry import export_logs
+
+try:  # running: agents/ is on the import path (serve_agent.py)
+    from fallback_gemini import FallbackGemini
+except ModuleNotFoundError:  # tests: imported from the repo root as agents.workout_agent
+    from agents.fallback_gemini import FallbackGemini
 from .tools import estimate_calories_burned
 
 CONFIG = yaml.safe_load((Path(__file__).parent / "config.yaml").read_text(encoding="utf-8"))
-RETRY = CONFIG["retry"]
 
 export_logs()
 
 root_agent = LlmAgent(
     name=CONFIG["name"],
-    model=Gemini(
-        model=CONFIG["model"],
-        retry_options=types.HttpRetryOptions(
-            attempts=RETRY["attempts"],
-            initial_delay=RETRY["initial_delay_seconds"],
-            http_status_codes=RETRY["http_status_codes"],
-        ),
-    ),
+    model=FallbackGemini.from_config(CONFIG["models"], CONFIG.get("fallback")),
     description=CONFIG["description"],
     instruction=CONFIG["instruction"],
     tools=[estimate_calories_burned],

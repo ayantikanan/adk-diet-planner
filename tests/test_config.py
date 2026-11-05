@@ -39,7 +39,7 @@ def test_sub_agents_use_their_config():
     for agent, cfg in [(grocery, GROCERY), (workout, WORKOUT)]:
         assert agent.name == cfg["name"]
         assert agent.instruction == cfg["instruction"]
-        assert agent.model.model == cfg["model"]
+        assert agent.model.model_names == cfg["models"]
 
 
 def test_workout_tool_description_and_numbers_from_config():

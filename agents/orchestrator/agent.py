@@ -50,7 +50,7 @@ workout_agent = remote_agent("workout_agent")
 
 root_agent = LlmAgent(
     name=CONFIG["name"],
-    model=FallbackGemini(model_names=CONFIG["models"]),
+    model=FallbackGemini.from_config(CONFIG["models"], CONFIG.get("fallback")),
     description=CONFIG["description"],
     instruction=CONFIG["instruction"],
     tools=[
