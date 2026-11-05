@@ -1,0 +1,28 @@
+# Cloud Run add-on for the OTel Collector (see docker-compose.cloud.yml).
+# Loaded ON TOP of otel-collector.yaml: adds a second OTLP/HTTP receiver on :4319 that only
+# accepts requests with "Authorization: Bearer <TELEMETRY_TOKEN>". The Cloudflare tunnel
+# publishes this port, so the services on Cloud Run can send traces, metrics and logs to the
+# local Tempo, Jaeger, Prometheus and Loki (and Grafana). Port 4318 stays as it was, for
+# services running on this machine.
+
+extensions:
+  bearertokenauth/cloud:
+    token: ${env:TELEMETRY_TOKEN}
+
+receivers:
+  otlp/cloud:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4319
+        auth:
+          authenticator: bearertokenauth/cloud
+
+service:
+  extensions: [bearertokenauth/cloud]
+  pipelines:
+    traces:
+      receivers: [otlp, otlp/cloud]
+    metrics:
+      receivers: [otlp, otlp/cloud, spanmetrics]
+    logs:
+      receivers: [otlp, otlp/cloud]

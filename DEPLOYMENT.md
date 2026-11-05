@@ -163,3 +163,35 @@ curl https://diet-orchestrator-34656130941.us-central1.run.app/list-apps
 **Security:** the `diet-planner` service and the three Gemini services in layout A currently have
 `GOOGLE_API_KEY` as a plain env var (Secret Manager wasn't readable yet). After step 1, switch them to
 `--set-secrets GOOGLE_API_KEY=GOOGLE_API_KEY:latest` and rotate the key.
+
+## Telemetry to local Grafana
+
+Without Cloud Trace permissions, the Cloud Run services can send their traces, metrics and logs to
+the **local** observability stack instead, through a public, token-protected endpoint:
+
+```
+Cloud Run services --OTLP/HTTPS + bearer token--> https://<random>.trycloudflare.com  (Cloudflare tunnel)
+   --> local OTel Collector :4319 (rejects requests without the token)
+   --> Tempo + Jaeger, Prometheus, Loki --> Grafana http://localhost:3000
+```
+
+1. Once: a secret in `observability/stack/.env` (git-ignored):
+   `TELEMETRY_TOKEN=<output of: python -c "import secrets;print(secrets.token_hex(32))">`
+2. Start the stack with the tunnel (Docker Desktop must be running):
+   ```bash
+   docker compose -f observability/stack/docker-compose.yml -f observability/stack/docker-compose.cloud.yml up -d
+   ```
+3. Find the endpoint address:
+   ```bash
+   docker logs stack-tunnel-1 2>&1 | grep -o "https://[a-z0-9-]*\.trycloudflare\.com"
+   ```
+4. Point the 5 services at it (checks the endpoint first):
+   ```bash
+   bash deploy/connect_telemetry.sh https://<random>.trycloudflare.com
+   ```
+5. Build a plan, then open Grafana http://localhost:3000 (dashboard "Diet Planner - Agents, MCP & LLM")
+   or Jaeger http://localhost:16686. The web app's Telemetry dot is green while the endpoint is up.
+
+The tunnel address changes whenever the tunnel restarts: repeat steps 3 and 4. Telemetry only flows while
+this machine and Docker are running (the services keep working when it's off; they just drop telemetry).
+Stop sending: `bash deploy/connect_telemetry.sh --off`.

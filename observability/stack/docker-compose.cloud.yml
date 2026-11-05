@@ -1,0 +1,23 @@
+# Cloud Run add-on: a public, token-protected telemetry endpoint for the services on Cloud Run,
+# feeding this local stack (Grafana, Tempo, Jaeger, Prometheus, Loki).
+#   1. Put a secret in observability/stack/.env (git-ignored):   TELEMETRY_TOKEN=<long random hex>
+#   2. Start:
+#      docker compose -f observability/stack/docker-compose.yml -f observability/stack/docker-compose.cloud.yml up -d
+#   3. The endpoint's address (changes on every tunnel restart):
+#      docker compose -f observability/stack/docker-compose.yml -f observability/stack/docker-compose.cloud.yml logs tunnel | grep trycloudflare
+#   4. Point the Cloud Run services at it: see DEPLOYMENT.md, "Telemetry to local Grafana".
+# The endpoint only works while this machine and Docker are running.
+services:
+  otel-collector:
+    command: ["--config=/etc/otelcol/config.yaml", "--config=/etc/otelcol/cloud.yaml"]
+    environment:
+      TELEMETRY_TOKEN: "${TELEMETRY_TOKEN:?set TELEMETRY_TOKEN in observability/stack/.env first}"
+    volumes:
+      - ./otel-collector.cloud.yaml:/etc/otelcol/cloud.yaml:ro
+
+  # Cloudflare quick tunnel (no account needed): https://<random>.trycloudflare.com -> collector :4319
+  tunnel:
+    image: cloudflare/cloudflared:2025.8.1
+    command: ["tunnel", "--no-autoupdate", "--url", "http://otel-collector:4319"]
+    depends_on: [otel-collector]
+    restart: unless-stopped
