@@ -48,6 +48,8 @@ UI = yaml.safe_load((Path(__file__).resolve().parent / "config.yaml").read_text(
 #   UI_LINKS=off               no Grafana / Jaeger links (they only exist on a local machine)
 CHECKS = {name: os.getenv(f"UI_CHECK_{name.upper()}", value) for name, value in UI["health_checks"].items()}
 ADK_URL = os.getenv("ADK_URL", UI["adk_url"]).rstrip("/")
+PLAN_TIMEOUT_SECONDS = 600  # a week plan can take several minutes
+KEEPALIVE_SECONDS = 15
 APP_NAME = UI["app_name"]
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -198,7 +200,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
     async def relay():
         answered = False
-        async with httpx.AsyncClient(timeout=httpx.Timeout(300, connect=10)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(PLAN_TIMEOUT_SECONDS, connect=10)) as client:
             try:
                 async with client.stream("POST", f"{ADK_URL}/run_sse", json=body) as response:
                     if response.status_code != 200:
@@ -207,7 +209,20 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                         timer.finish("error", error)
                         yield f"data: {json.dumps({'error': error})}\n\n"
                         return
-                    async for line in response.aiter_lines():
+                    # A plan can take minutes with no event in between; browsers and proxies drop
+                    # a silent connection, so send an SSE comment (ignored by the page) every 15 s.
+                    lines = response.aiter_lines().__aiter__()
+                    pending = asyncio.ensure_future(lines.__anext__())
+                    while True:
+                        done, _ = await asyncio.wait({pending}, timeout=KEEPALIVE_SECONDS)
+                        if not done:
+                            yield ": keepalive\n\n"
+                            continue
+                        try:
+                            line = pending.result()
+                        except StopAsyncIteration:
+                            break
+                        pending = asyncio.ensure_future(lines.__anext__())
                         if not line:
                             continue
                         event = _event(line)
@@ -222,7 +237,8 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 timer.finish("error", error)
                 yield f"data: {json.dumps({'error': error})}\n\n"
 
-    return StreamingResponse(relay(), media_type="text/event-stream")
+    return StreamingResponse(relay(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 def _event(line: str) -> dict:

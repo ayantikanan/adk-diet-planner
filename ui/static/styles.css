@@ -59,6 +59,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 .status { display: flex; flex-wrap: wrap; gap: 6px 16px; list-style: none; margin: 0; padding: 0; font-size: 0.85rem; color: var(--muted); }
 .status li { display: flex; align-items: center; gap: 6px; }
+.status li[hidden] { display: none; }  /* a service this deployment doesn't check */
 .dot { width: 8px; height: 8px; border-radius: 50%; background: #a9b0a4; }
 .status li[data-up="true"] .dot { background: var(--leaf); }
 .status li[data-up="false"] { color: var(--beet); }
