@@ -9,6 +9,18 @@ traced with **OpenTelemetry** and shown in **Grafana** and **Jaeger**.
 Ask: *"I'm 35, female, 75 kg, 165 cm, lightly active, want to lose weight."*
 Get back: a meal plan with calories and macros, a shopping list, and a workout.
 
+## Live demo (Google Cloud Run)
+
+| What | Link |
+|---|---|
+| Web app | https://diet-planner-34656130941.us-central1.run.app |
+| ADK developer UI (pick **orchestrator**) | https://diet-orchestrator-34656130941.us-central1.run.app |
+| Health check | https://diet-planner-34656130941.us-central1.run.app/api/health |
+
+Each part runs as its own Cloud Run service (web app, orchestrator, MCP server, two A2A agents).
+To list every link and check it answers: `bash deploy/show_urls.sh`. Step-by-step deployment,
+where to find the links in the Cloud Console, and troubleshooting: [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ---
 
 ## Architecture

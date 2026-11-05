@@ -12,15 +12,57 @@ There are two ways to run it on Cloud Run:
 
 ## Current deployment (live)
 
-| Cloud Run service | `SERVICE` | Runs |
-|---|---|---|
-| `diet-planner` | `ui` | Web UI (`ui/app.py`): https://diet-planner-34656130941.us-central1.run.app |
-| `diet-orchestrator` | `orchestrator` | Orchestrator agent + ADK developer UI |
-| `diet-mcp-server` | `mcp` | MCP tools (`/mcp`) |
-| `diet-grocery-agent` | `grocery_agent` | Grocery A2A agent |
-| `diet-workout-agent` | `workout_agent` | Workout A2A agent |
+| Cloud Run service | `SERVICE` | Runs | Link |
+|---|---|---|---|
+| `diet-planner` | `ui` | Web UI (`ui/app.py`), **open this** | https://diet-planner-34656130941.us-central1.run.app |
+| `diet-orchestrator` | `orchestrator` | Orchestrator agent + ADK developer UI | https://diet-orchestrator-34656130941.us-central1.run.app |
+| `diet-mcp-server` | `mcp` | MCP tools (API) | https://diet-mcp-server-34656130941.us-central1.run.app/mcp |
+| `diet-grocery-agent` | `grocery_agent` | Grocery A2A agent (API) | https://diet-grocery-agent-34656130941.us-central1.run.app/a2a/grocery_agent |
+| `diet-workout-agent` | `workout_agent` | Workout A2A agent (API) | https://diet-workout-agent-34656130941.us-central1.run.app/a2a/workout_agent |
 
-All five are public. Section 3B (all-in-one) is the fallback when the separate services can't be made public.
+All five are public. Only the first two are web pages; the other three are APIs the orchestrator
+calls (opening them in a browser shows a short description). Section 3B (all-in-one) is the fallback
+when the separate services can't be made public.
+
+### Finding the links
+
+**1. From the command line** (prints every link and checks it answers):
+
+```bash
+bash deploy/show_urls.sh
+```
+
+```
+SERVICE              STATUS LINK
+diet-planner         200    https://diet-planner-34656130941.us-central1.run.app  (web app (open in a browser))
+diet-orchestrator    307    https://diet-orchestrator-34656130941.us-central1.run.app  (ADK developer UI (open in a browser))
+diet-mcp-server      200    https://diet-mcp-server-34656130941.us-central1.run.app/mcp  (MCP tools (API))
+...
+```
+
+STATUS `200` or `307` means it's up and public; `403` means it's private (see step 1); `000` means it
+isn't answering. Or list them with plain gcloud:
+
+```bash
+gcloud run services list --project eternal-nucleus-513516-a2 --region us-central1 --format="table(metadata.name,status.url)"
+```
+
+(That shows each service's other, equally valid address, `https://<service>-bjqcs6gv2a-uc.a.run.app`.)
+
+**2. In the Cloud Console:**
+
+1. Open https://console.cloud.google.com/run?project=eternal-nucleus-513516-a2
+   (or ☰ menu > **Cloud Run**).
+2. Click a service name, for example `diet-planner`.
+3. The link is at the top of the service page, next to **URL**; click it or use the copy icon.
+   The **Logs** tab shows each request, **Revisions** each deploy, **Security** who can call it.
+
+**3. Work it out:** every link follows `https://<service>-<project number>.<region>.run.app`, so
+`https://diet-planner-34656130941.us-central1.run.app`, and so on. The deploy commands below use this
+(the `url()` helper), because the address is known even before a service's first deploy.
+
+**4. After a GitHub Actions deploy:** the run's summary page lists the links
+(Actions > the "Deploy to Cloud Run" run > Summary).
 
 ---
 
@@ -120,16 +162,27 @@ gcloud run deploy diet-planner --image $IMAGE --memory 2Gi --cpu 2 --min 1 --max
 
 ## 4. Test
 
-Open https://diet-planner-34656130941.us-central1.run.app (the web app, fill in the profile and click
-**Build my plan**), the orchestrator URL (ADK developer UI) or https://diet-planner-34656130941.us-central1.run.app (B) in a browser,
-pick **orchestrator**, and ask:
+**In a browser:**
 
-> I am 35, female, 75 kg, 165 cm, lightly active, want to lose weight. Not vegetarian, no allergies.
+1. Web app: open https://diet-planner-34656130941.us-central1.run.app, fill in the profile and click
+   **Build my plan** (one day, 1-2 minutes) or **Plan my week** (2-3 minutes). The status dots at the top
+   should be green.
+2. ADK developer UI: open https://diet-orchestrator-34656130941.us-central1.run.app, pick
+   **orchestrator** in the top-left dropdown, and ask:
 
-From the command line:
+   > I am 35, female, 75 kg, 165 cm, lightly active, want to lose weight. Not vegetarian, no allergies.
+
+   Click the events on the left to see each MCP tool call and A2A hand-off.
+
+(Layout B: open https://diet-planner-34656130941.us-central1.run.app and use it like the ADK UI in 2.)
+
+**Health check:** https://diet-planner-34656130941.us-central1.run.app/api/health should show
+`"orchestrator":true,"tools":true,"grocery_agent":true,"workout_agent":true`.
+
+**From the command line** (straight to the orchestrator's API):
 
 ```bash
-B=https://diet-planner-34656130941.us-central1.run.app
+B=https://diet-orchestrator-34656130941.us-central1.run.app
 curl -X POST $B/apps/orchestrator/users/demo/sessions/s1 -H "Content-Type: application/json" -d '{}'
 curl -X POST $B/run -H "Content-Type: application/json" -d '{"app_name":"orchestrator","user_id":"demo",
   "session_id":"s1","new_message":{"role":"user","parts":[{"text":"I am 35, female, 75 kg, 165 cm, lightly active, want to lose weight."}]}}'
