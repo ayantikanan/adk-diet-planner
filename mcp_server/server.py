@@ -50,7 +50,20 @@ if __name__ == "__main__":
     else:
         import uvicorn
 
+        from starlette.responses import JSONResponse
+        from starlette.routing import Route
+
         app = mcp.streamable_http_app(host=HOST)
+
+        async def info(request):  # GET / : what this is, instead of "Not Found" in a browser
+            return JSONResponse({
+                "service": f"MCP server: {SERVER['name']}",
+                "note": "This is an API used by the orchestrator, not a web page.",
+                "mcp_endpoint": f"{str(request.base_url).rstrip('/')}/mcp",
+                "tools": sorted(TOOLS),
+            })
+
+        app.router.routes.append(Route("/", info, methods=["GET"]))
         if telemetry_enabled:
             instrument_http(app)  # HTTP request metrics + spans, like the agents have
         print(f"MCP server running on http://{HOST}:{PORT}/mcp")

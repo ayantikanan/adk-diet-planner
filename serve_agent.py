@@ -109,7 +109,26 @@ def build_app(name: str, host: str = "127.0.0.1", port: int = 8001):
     finally:
         adk_logger.removeFilter(quiet)
     app.add_middleware(OpenTelemetryMiddleware, exclude_spans=["receive", "send"])  # continues the caller's trace
+    app.router.routes.append(_info_route(name, card))
     return app
+
+
+def _info_route(name: str, card: dict):
+    """GET / : what this server is, instead of "Not Found" when someone opens it in a browser."""
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+
+    async def info(request):
+        base = str(request.base_url).rstrip("/")
+        return JSONResponse({
+            "service": f"A2A agent: {name}",
+            "description": card.get("description", ""),
+            "note": "This is an API used by the orchestrator, not a web page.",
+            "agent_card": f"{base}/a2a/{name}/.well-known/agent-card.json",
+            "a2a_endpoint": f"{base}/a2a/{name}",
+        })
+
+    return Route("/", info, methods=["GET"])
 
 
 def main() -> None:
