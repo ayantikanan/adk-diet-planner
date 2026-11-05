@@ -195,3 +195,29 @@ Cloud Run services --OTLP/HTTPS + bearer token--> https://<random>.trycloudflare
 The tunnel address changes whenever the tunnel restarts: repeat steps 3 and 4. Telemetry only flows while
 this machine and Docker are running (the services keep working when it's off; they just drop telemetry).
 Stop sending: `bash deploy/connect_telemetry.sh --off`.
+
+## Secrets
+
+Real secret values are never committed. Each one lives outside git, and the repo has a template with
+placeholders next to it, so the whole repo can be pushed to GitHub safely.
+
+| Secret | Real value lives in (git-ignored) | Committed template | Used by |
+|---|---|---|---|
+| Gemini API key `GOOGLE_API_KEY` | `agents/.env` | `agents/.env.example` | Agents, run locally |
+| Telemetry token `TELEMETRY_TOKEN` | `observability/stack/.env` | `observability/stack/.env.example` | Local collector's public endpoint; `deploy/connect_telemetry.sh` copies it to Cloud Run |
+| Slack webhook URL | `observability/stack/alertmanager/secrets/slack_webhook_url` | `observability/stack/alertmanager/slack_webhook_url.example` | Alertmanager |
+| Gemini API key on Cloud Run | Secret Manager secret `GOOGLE_API_KEY` | none | Cloud Run services (`--set-secrets`) |
+| GitHub Actions sign-in | GitHub repo secrets `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_DEPLOYER_SERVICE_ACCOUNT` | none | `.github/workflows/deployment-cicd.yaml` |
+
+New machine: copy each template to its real name and fill it in, for example
+`cp agents/.env.example agents/.env`. `gcp.env` and `otel.env` hold settings only (no secrets) and are committed.
+
+`.gitignore` also blocks `.env.*` (except `.env.example`), `*.pem`, `*.key` and credential or
+service-account JSON files. Before pushing, check that nothing secret is staged: `git status` should not
+list any `.env` file.
+
+**Cloud Run today:** the services currently hold the Gemini key and the telemetry token as plain env vars,
+because the runtime service account can't read Secret Manager yet. Once the owner grants
+`roles/secretmanager.secretAccessor` on the `GOOGLE_API_KEY` secret (step 1), switch each service with
+`gcloud run services update <service> --remove-env-vars GOOGLE_API_KEY --set-secrets GOOGLE_API_KEY=GOOGLE_API_KEY:latest`
+and rotate the key.

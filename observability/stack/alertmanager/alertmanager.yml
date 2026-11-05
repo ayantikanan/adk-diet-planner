@@ -3,6 +3,7 @@
 #
 # Slack: create an "Incoming Webhook" in your Slack workspace and save its URL
 # (one line, nothing else) in observability/stack/alertmanager/secrets/slack_webhook_url
+# (template: observability/stack/alertmanager/slack_webhook_url.example)
 # That folder is in .gitignore: the URL is a secret and never goes to GitHub.
 # Without the file, alerts still show in Alertmanager and Grafana; sending to Slack fails quietly.
 

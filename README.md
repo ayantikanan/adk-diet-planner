@@ -57,7 +57,7 @@ OpenTelemetry, Grafana, Tempo, Jaeger, Prometheus, Loki, Docker, uv, pytest, ADK
 ```
 diet-planner/
 |-- agents/                       one folder per agent (the ADK agents directory)
-|   |-- .env                      GOOGLE_API_KEY (never committed; copy .env.example)
+|   |-- .env.example              template: copy to .env and add GOOGLE_API_KEY (.env is never committed)
 |   |-- orchestrator/
 |   |   |-- agent.py              MCP tools + 2 A2A sub-agents
 |   |   |-- config.yaml           prompt, models, MCP + sub-agent addresses
@@ -315,3 +315,7 @@ Then add two **repository secrets** in GitHub (Settings > Secrets and variables 
 
 After a run, the job summary lists the four URLs. Cloud Run sessions are in memory, so the orchestrator
 runs as one instance with session affinity; a restart starts new chats.
+
+
+Secrets (API key, telemetry token, Slack webhook) stay in git-ignored files; each has a committed
+`.example` template. See [DEPLOYMENT.md](DEPLOYMENT.md#secrets).

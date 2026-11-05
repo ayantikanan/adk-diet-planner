@@ -4,8 +4,17 @@ mcp_server/data/*.db
 mcp_server/data/*.building
 diet_agent/.adk/
 
-.env
 .adk/
+
+# Secrets: real values stay local; the *.example files next to them are the committed templates.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*.json
+*service-account*.json
+*-sa-key.json
 
 # Python caches and local environments
 __pycache__/
