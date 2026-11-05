@@ -6,7 +6,7 @@
 name: workout_agent
 description: "Suggests a simple daily workout and estimates the calories it burns."
 
-# Tried in order; if one is busy, out of quota or unavailable (404/429/5xx) the next one answers.
+# Tried in order; if one is busy, out of quota or unavailable the next one answers.
 # Light models first: this agent's job is short and simple.
 models:
   - gemini-3.5-flash-lite
@@ -19,6 +19,15 @@ models:
   - gemini-3.8-flash
   - gemini-flash-latest
   - gemini-3-flash-preview
+  # Other providers with free API tiers (through LiteLLM). Each is used only when its key is set
+  # (GROQ_API_KEY, CEREBRAS_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY: see agents/.env.example).
+  - groq/llama-3.1-8b-instant
+  - groq/llama-3.3-70b-versatile
+  - cerebras/llama3.1-8b
+  - cerebras/gpt-oss-120b
+  - mistral/mistral-small-latest
+  - openrouter/meta-llama/llama-3.3-70b-instruct:free
+  - openrouter/deepseek/deepseek-chat-v3-0324:free
 
 # What happens when a model fails (agents/fallback_gemini.py):
 fallback:

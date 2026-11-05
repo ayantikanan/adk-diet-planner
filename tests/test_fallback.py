@@ -81,3 +81,45 @@ async def test_other_errors_are_not_retried():
     with pytest.raises(errors.APIError):
         await answer(llm)
     assert fakes["b"].calls == 0
+
+
+class FakeLiteLlmError(Exception):
+    """Shaped like LiteLLM's exceptions: the HTTP status is in .status_code."""
+
+    def __init__(self, status_code: int):
+        super().__init__(f"fake {status_code}")
+        self.status_code = status_code
+
+
+class FakeOtherProvider(FakeModel):
+    async def generate_content_async(self, request, stream=False):
+        self.calls += 1
+        if self.failures:
+            raise FakeLiteLlmError(self.failures.pop(0))
+        yield LlmResponse(content=types.Content(role="model", parts=[types.Part(text=f"from {self.model}")]))
+
+
+async def test_provider_without_key_is_left_out(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    llm, fakes = make({"gemini-x": [503], "groq/llama": []}, rounds=1)
+    fakes["groq/llama"] = llm._models["groq/llama"] = FakeOtherProvider("groq/llama", [])
+    with pytest.raises(errors.APIError):
+        await answer(llm)
+    assert fakes["groq/llama"].calls == 0
+
+
+async def test_other_provider_answers_when_gemini_fails(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test")
+    llm, fakes = make({"gemini-x": [429], "groq/a": [], "groq/b": []}, rounds=1)
+    for name, codes in (("groq/a", [400]), ("groq/b", [])):  # a can't take the request: 400
+        fakes[name] = llm._models[name] = FakeOtherProvider(name, codes)
+    assert await answer(llm) == "from groq/b"
+
+
+async def test_unknown_provider_errors_are_raised(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test")
+    llm, fakes = make({"groq/a": [], "groq/b": []})
+    llm._models["groq/a"] = FakeOtherProvider("groq/a", [])
+    llm._models["groq/a"].generate_content_async = None  # calling it raises TypeError: a bug, not a model error
+    with pytest.raises(TypeError):
+        await answer(llm)
